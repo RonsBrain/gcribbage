@@ -14,12 +14,12 @@ LDFLAGS = $(shell pkg-config --libs gtk4) -g -lm
 CFLAGS ?= $(INC_FLAGS) $(shell pkg-config --cflags gtk4) -MMD -MP -g -lm
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
-	$(CXX) $(OBJS) -o $@ $(LDFLAGS)
+	$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
-# cpp source
+# c source
 $(BUILD_DIR)/%.c.o: %.c
 	$(MKDIR_P) $(dir $@)
-	$(CXX) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 .PHONY: clean
 
