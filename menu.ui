@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+    <menu id="menu">
+        <section>
+            <item>
+                <attribute name="label" translatable="yes">Statistics</attribute>
+                <attribute name="action">app.statistics</attribute>
+            </item>
+        </section>
+        <section>
+            <item>
+                <attribute name="label" translatable="yes">How to play</attribute>
+                <attribute name="action">app.documentation</attribute>
+            </item>
+            <item>
+                <attribute name="label" translatable="yes">About</attribute>
+                <attribute name="action">app.about</attribute>
+            </item>
+        </section>
+        <section>
+            <item>
+                <attribute name="label" translatable="yes">Quit</attribute>
+                <attribute name="action">app.quit</attribute>
+            </item>
+        </section>
+    </menu>
+</interface>
