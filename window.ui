@@ -21,8 +21,6 @@
     </child>
     <child>
         <object class="GCribbageTable" id="table">
-            <property name="width_request">400</property>
-            <property name="height_request">400</property>
             <property name="visible">True</property>
             <property name="hexpand">True</property>
             <property name="vexpand">True</property>
