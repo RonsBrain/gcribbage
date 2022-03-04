@@ -3,5 +3,7 @@
     <gresource prefix="/com/ronsbrain/gcribbage">
         <file preprocess="xml-stripblanks">window.ui</file>
         <file preprocess="xml-stripblanks">menu.ui</file>
+        <file>assets/cards.png</file>
+        <file>assets/back.png</file>
     </gresource>
 </gresources>

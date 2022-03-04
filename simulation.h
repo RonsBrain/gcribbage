@@ -1,7 +1,6 @@
 #pragma once
 
 enum GameState {
-    NOT_STARTED,
     CHOOSE_DEALER,
     PEGGING,
     COUNTING,

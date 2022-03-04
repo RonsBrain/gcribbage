@@ -20,10 +20,10 @@ void new_game_clicked(GtkButton *button, GCribbageApplicationWindow *win) {
 }
 
 static void gcribbage_application_window_init(GCribbageApplicationWindow *win) {
-    gtk_widget_init_template(GTK_WIDGET(win));
-
     GtkBuilder *builder;
     GMenuModel *menu;
+
+    gtk_widget_init_template(GTK_WIDGET(win));
 
     builder = gtk_builder_new_from_resource("/com/ronsbrain/gcribbage/menu.ui");
     menu = G_MENU_MODEL(gtk_builder_get_object(builder, "menu"));
