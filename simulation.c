@@ -15,6 +15,7 @@ struct GameData {
     enum GameState state;
     char player_chosen_cards[6];
     char cpu_chosen_cards[6];
+    char cut_cards[2];
 };
 
 /*
@@ -83,6 +84,8 @@ void game_data_advance_game(struct GameData *game_data, int player_choice_positi
                 get_random_cards(2, chosen);
                 game_data->player_chosen_cards[0] = chosen[0];
                 game_data->cpu_chosen_cards[0] = chosen[1];
+                game_data->cut_cards[0] = player_choice_position;
+                game_data->cut_cards[1] = get_random_number(1, 13);
             }
             break;
         default:
@@ -104,6 +107,6 @@ void game_data_get_render_scene(struct GameData *game_data, struct RenderScene *
     scene->type = DECK_CUT_SCENE;
     scene->deck_cut_scene.player_card = game_data->player_chosen_cards[0];
     scene->deck_cut_scene.cpu_card = game_data->cpu_chosen_cards[0];
-    scene->deck_cut_scene.chosen_slots[0] = 0;
-    scene->deck_cut_scene.chosen_slots[1] = 0;
+    scene->deck_cut_scene.chosen_slots[0] = game_data->cut_cards[0];
+    scene->deck_cut_scene.chosen_slots[1] = game_data->cut_cards[1];
 }

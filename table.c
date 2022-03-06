@@ -96,7 +96,7 @@ void gcribbage_table_render_centered_text(GCribbageTable *table, char *text, int
     cairo_show_text(table->buffer_context, text);
 }
 
-void gcribbage_table_render_choose_dealer(GCribbageTable *table, char player_chosen_card, char cpu_chosen_card) {
+void gcribbage_table_render_choose_dealer(GCribbageTable *table, struct RenderDeckCutScene *scene) {
     struct HitBox *hitbox;
     int width = table->card_options.fan_spacing * CARD_MAX_CUT_POSITIONS - 1 + table->card_options.width;
     cairo_surface_t *surface = cairo_get_target(table->buffer_context);
@@ -107,43 +107,49 @@ void gcribbage_table_render_choose_dealer(GCribbageTable *table, char player_cho
     // Reset hitbox count to 0
     table->num_hitboxes = 0;
 
+    int hit_box_width = 0;
     for (int i = 0; i < CARD_MAX_CUT_POSITIONS; i++) {
-        gcribbage_table_render_card_back(
-            table,
-            width + i * table->card_options.fan_spacing,
-            table->card_options.top_offset
-        );
-        hitbox = &table->hit_boxes[table->num_hitboxes];
-        if (i < CARD_MAX_CUT_POSITIONS - 1) {
-            hitbox->x = width + i * table->card_options.fan_spacing;
-            hitbox->y = table->card_options.top_offset;
-            hitbox->width = table->card_options.fan_spacing;
-            hitbox->height = table->card_options.height;
+        if (i == scene->chosen_slots[0] || i == scene->chosen_slots[1]) {
+            hit_box_width += table->card_options.fan_spacing;
         } else {
-            hitbox->x = width + i * table->card_options.fan_spacing;
-            hitbox->y = table->card_options.top_offset;
-            hitbox->width = table->card_options.width;
-            hitbox->height = table->card_options.height;
+            gcribbage_table_render_card_back(
+                table,
+                width + i * table->card_options.fan_spacing,
+                table->card_options.top_offset
+            );
+            hitbox = &table->hit_boxes[table->num_hitboxes];
+            if (i < CARD_MAX_CUT_POSITIONS - 1) {
+                hitbox->x = width + i * table->card_options.fan_spacing;
+                hitbox->y = table->card_options.top_offset;
+                hitbox->width = hit_box_width + table->card_options.fan_spacing;
+                hitbox->height = table->card_options.height;
+            } else {
+                hitbox->x = width + i * table->card_options.fan_spacing;
+                hitbox->y = table->card_options.top_offset;
+                hitbox->width = table->card_options.width;
+                hitbox->height = table->card_options.height;
+            }
+            hit_box_width = 0;
+            table->num_hitboxes++;
         }
-        table->num_hitboxes++;
     }
 
-    if (player_chosen_card != CARD_NONE) {
+    if (scene->player_card != CARD_NONE) {
         gcribbage_table_render_card(
             table,
-            player_chosen_card,
+            scene->player_card,
             width,
             table->card_options.middle_offset
         );
 
         gcribbage_table_render_card(
             table,
-            cpu_chosen_card,
+            scene->cpu_card,
             width + table->card_options.fan_spacing * 12,
             table->card_options.middle_offset
         );
 
-        if ((player_chosen_card & 0xf) < (cpu_chosen_card & 0xf)) {
+        if ((scene->player_card & 0xf) < (scene->cpu_card & 0xf)) {
             gcribbage_table_render_centered_text(
                 table,
                 "You deal first.",
@@ -173,8 +179,7 @@ void render_buffer(GCribbageTable *table) {
         case DECK_CUT_SCENE:
             gcribbage_table_render_choose_dealer(
                 table,
-                scene.deck_cut_scene.player_card,
-                scene.deck_cut_scene.cpu_card
+                &scene.deck_cut_scene
             );
             break;
         default:
