@@ -10,12 +10,6 @@ struct _GCribbageApplication {
 
 G_DEFINE_TYPE(GCribbageApplication, gcribbage_application, GTK_TYPE_APPLICATION);
 
-struct GameData *gcribbage_application_new_game(GCribbageApplication *app) {
-    game_data_destroy(app->game_data);
-    app->game_data = game_data_create();
-    return app->game_data;
-}
-
 static void quit_activated(
     GSimpleAction *action,
     GVariant *parameter,
@@ -31,7 +25,6 @@ static void gcribbage_application_activate(GApplication *app) {
     GCribbageApplicationWindow *win;
 
     win = gcribbage_application_window_new(GCRIBBAGE_APPLICATION(app));
-    gcribbage_application_new_game(GCRIBBAGE_APPLICATION(app));
     gtk_window_present(GTK_WINDOW(win));
 }
 

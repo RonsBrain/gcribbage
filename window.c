@@ -14,9 +14,7 @@ struct _GCribbageApplicationWindow {
 G_DEFINE_TYPE(GCribbageApplicationWindow, gcribbage_application_window, GTK_TYPE_APPLICATION_WINDOW);
 
 void new_game_clicked(GtkButton *button, GCribbageApplicationWindow *win) {
-    struct GameData *game_data;
-    game_data = gcribbage_application_new_game(GCRIBBAGE_APPLICATION(gtk_window_get_application(GTK_WINDOW(win))));
-    gcribbage_table_update_game_data(GCRIBBAGE_TABLE(win->table), game_data, POSITION_NONE);
+    gcribbage_table_start_new_game(GCRIBBAGE_TABLE(win->table));
 }
 
 static void gcribbage_application_window_init(GCribbageApplicationWindow *win) {

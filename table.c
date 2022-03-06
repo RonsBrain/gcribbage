@@ -4,11 +4,16 @@
 #include "simulation.h"
 
 #define MAX_HITBOXES 13
-#define CARD_DIMENSIONS_WIDTH 150
-#define CARD_DIMENSIONS_HEIGHT 210
-#define CARD_FAN_SPACING 30
-#define CARD_CHOOSE_DEALER_OFFSET 50
-#define CARD_MAX_POSITIONS 13
+#define CARD_MAX_CUT_POSITIONS 13
+
+struct CardOptions {
+    int width;
+    int height;
+    int fan_spacing;
+    int top_offset;
+    int middle_offset;
+    int bottom_offset;
+};
 
 struct HitBox {
     int x;
@@ -25,6 +30,7 @@ struct _GCribbageTable {
     GdkPixbuf *card_back;
     struct HitBox hit_boxes[MAX_HITBOXES];
     int num_hitboxes;
+    struct CardOptions card_options;
 };
 
 G_DEFINE_TYPE(GCribbageTable, gcribbage_table, GTK_TYPE_DRAWING_AREA);
@@ -36,33 +42,63 @@ void clear_buffer(cairo_t *cr) {
     cairo_paint(cr);
 }
 
-void render_card(cairo_t *cr, GdkPixbuf *card_images, int rank, int suit, int x, int y) {
-    int src_x = CARD_DIMENSIONS_WIDTH * rank;
-    int src_y = CARD_DIMENSIONS_HEIGHT * suit;
+void gcribbage_table_render_card(GCribbageTable *table, char card, int x, int y) {
+    int rank = (card & 0xf) - 1;  // Rank goes from 1 - 13 but we want to offset from 0
+    int suit = (card >> 4);
+    int src_x = table->card_options.width * rank;
+    int src_y = table->card_options.height * suit;
     gdk_cairo_set_source_pixbuf(
-        cr,
-        card_images,
+        table->buffer_context,
+        table->card_images,
         x - src_x,
         y - src_y
     );
-    cairo_rectangle(cr, x, y, CARD_DIMENSIONS_WIDTH, CARD_DIMENSIONS_HEIGHT);
-    cairo_fill(cr);
+    cairo_rectangle(
+        table->buffer_context,
+        x,
+        y,
+        table->card_options.width,
+        table->card_options.height
+    );
+    cairo_fill(table->buffer_context);
 }
 
-void render_card_back(cairo_t *cr, GdkPixbuf *card_back, int x, int y) {
+void gcribbage_table_render_card_back(GCribbageTable *table, int x, int y) {
     gdk_cairo_set_source_pixbuf(
-        cr,
-        card_back,
+        table->buffer_context,
+        table->card_back,
         x,
         y
     );
-    cairo_rectangle(cr, x, y, CARD_DIMENSIONS_WIDTH, CARD_DIMENSIONS_HEIGHT);
-    cairo_fill(cr);
+    cairo_rectangle(
+        table->buffer_context,
+        x,
+        y,
+        table->card_options.width,
+        table->card_options.height
+    );
+    cairo_fill(table->buffer_context);
 }
 
-void render_choose_dealer(GCribbageTable *table, char player_chosen_card, char cpu_chosen_card) {
+/* Figures out how to center text and draws it on the table's buffer.
+ * The y value is where you want the *BOTTOM* of the text to be.
+ * TODO: Make this take in the lane and position for the text
+ */
+void gcribbage_table_render_centered_text(GCribbageTable *table, char *text, int y) {
+    cairo_surface_t *surface = cairo_get_target(table->buffer_context);
+    int win_width = cairo_image_surface_get_width(surface);
+    cairo_text_extents_t extents;
+    cairo_text_extents(table->buffer_context, text, &extents);
+    int x = win_width / 2 - (int)extents.width / 2;
+    y += (int)extents.height;
+    cairo_set_source_rgb(table->buffer_context, 0.8, 0.8, 0.8);
+    cairo_move_to(table->buffer_context, x, y);
+    cairo_show_text(table->buffer_context, text);
+}
+
+void gcribbage_table_render_choose_dealer(GCribbageTable *table, char player_chosen_card, char cpu_chosen_card) {
     struct HitBox *hitbox;
-    int width = CARD_FAN_SPACING * 12 + CARD_DIMENSIONS_WIDTH;
+    int width = table->card_options.fan_spacing * CARD_MAX_CUT_POSITIONS - 1 + table->card_options.width;
     cairo_surface_t *surface = cairo_get_target(table->buffer_context);
     int win_width = cairo_image_surface_get_width(surface);
 
@@ -71,67 +107,61 @@ void render_choose_dealer(GCribbageTable *table, char player_chosen_card, char c
     // Reset hitbox count to 0
     table->num_hitboxes = 0;
 
-    for (int i = 0; i < CARD_MAX_POSITIONS; i++) {
-        render_card_back(
-            table->buffer_context,
-            table->card_back,
-            width + i * CARD_FAN_SPACING,
-            CARD_CHOOSE_DEALER_OFFSET
+    for (int i = 0; i < CARD_MAX_CUT_POSITIONS; i++) {
+        gcribbage_table_render_card_back(
+            table,
+            width + i * table->card_options.fan_spacing,
+            table->card_options.top_offset
         );
         hitbox = &table->hit_boxes[table->num_hitboxes];
-        if (i < CARD_MAX_POSITIONS - 1) {
-            hitbox->x = width + i * CARD_FAN_SPACING;
-            hitbox->y = CARD_CHOOSE_DEALER_OFFSET;
-            hitbox->width = CARD_FAN_SPACING;
-            hitbox->height = CARD_DIMENSIONS_HEIGHT;
+        if (i < CARD_MAX_CUT_POSITIONS - 1) {
+            hitbox->x = width + i * table->card_options.fan_spacing;
+            hitbox->y = table->card_options.top_offset;
+            hitbox->width = table->card_options.fan_spacing;
+            hitbox->height = table->card_options.height;
         } else {
-            hitbox->x = width + i * CARD_FAN_SPACING;
-            hitbox->y = CARD_CHOOSE_DEALER_OFFSET;
-            hitbox->width = CARD_DIMENSIONS_WIDTH;
-            hitbox->height = CARD_DIMENSIONS_HEIGHT;
+            hitbox->x = width + i * table->card_options.fan_spacing;
+            hitbox->y = table->card_options.top_offset;
+            hitbox->width = table->card_options.width;
+            hitbox->height = table->card_options.height;
         }
         table->num_hitboxes++;
     }
 
     if (player_chosen_card != CARD_NONE) {
-        int rank, suit;
-        rank = player_chosen_card & 0xf;
-        suit = player_chosen_card & (1 << 4) >> 4;
-        render_card(
-            table->buffer_context,
-            table->card_images,
-            rank,
-            suit,
+        gcribbage_table_render_card(
+            table,
+            player_chosen_card,
             width,
-            CARD_CHOOSE_DEALER_OFFSET * 2 + CARD_DIMENSIONS_HEIGHT + CARD_FAN_SPACING
+            table->card_options.middle_offset
         );
 
-        rank = cpu_chosen_card & 0xf;
-        suit = cpu_chosen_card & (1 << 4) >> 4;
-        render_card(
-            table->buffer_context,
-            table->card_images,
-            rank,
-            suit,
-            width + CARD_DIMENSIONS_WIDTH + CARD_FAN_SPACING,
-            CARD_CHOOSE_DEALER_OFFSET * 2 + CARD_DIMENSIONS_HEIGHT + CARD_FAN_SPACING
+        gcribbage_table_render_card(
+            table,
+            cpu_chosen_card,
+            width + table->card_options.fan_spacing * 12,
+            table->card_options.middle_offset
         );
 
-        cairo_set_source_rgb(table->buffer_context, 0.8, 0.8, 0.8);
-        cairo_select_font_face(table->buffer_context, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-        cairo_set_font_size(table->buffer_context, 18);
-        cairo_move_to(table->buffer_context, width, CARD_CHOOSE_DEALER_OFFSET * 2 + CARD_DIMENSIONS_HEIGHT);
         if ((player_chosen_card & 0xf) < (cpu_chosen_card & 0xf)) {
-            cairo_show_text(table->buffer_context, "You deal first.");
+            gcribbage_table_render_centered_text(
+                table,
+                "You deal first.",
+                table->card_options.middle_offset
+            );
         } else {
-            cairo_show_text(table->buffer_context, "CPU deals first.");
+            gcribbage_table_render_centered_text(
+                table,
+                "CPU deals first.",
+                table->card_options.middle_offset
+            );
         }
     } else {
-        cairo_set_source_rgb(table->buffer_context, 0.8, 0.8, 0.8);
-        cairo_select_font_face(table->buffer_context, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-        cairo_set_font_size(table->buffer_context, 18);
-        cairo_move_to(table->buffer_context, width, CARD_CHOOSE_DEALER_OFFSET * 2 + CARD_DIMENSIONS_HEIGHT);
-        cairo_show_text(table->buffer_context, "Choose a card. Lowest card deals first.");
+        gcribbage_table_render_centered_text(
+            table,
+            "Choose a card. Lowest card deals first.",
+            table->card_options.middle_offset
+        );
     }
 }
 
@@ -141,7 +171,7 @@ void render_buffer(GCribbageTable *table) {
     clear_buffer(table->buffer_context);
     switch (scene.type) {
         case DECK_CUT_SCENE:
-            render_choose_dealer(
+            gcribbage_table_render_choose_dealer(
                 table,
                 scene.deck_cut_scene.player_card,
                 scene.deck_cut_scene.cpu_card
@@ -152,7 +182,7 @@ void render_buffer(GCribbageTable *table) {
     }
 }
 
-void allocate_buffer(GCribbageTable *table, int width, int height, gpointer userdata) {
+void gcribbage_table_handle_resize(GCribbageTable *table, int width, int height, gpointer userdata) {
     if (table->buffer_context) {
         cairo_destroy(table->buffer_context);
     }
@@ -162,6 +192,11 @@ void allocate_buffer(GCribbageTable *table, int width, int height, gpointer user
         height
     );
     table->buffer_context = cairo_create(surface);
+    cairo_select_font_face(table->buffer_context, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_set_font_size(table->buffer_context, 18);
+    table->card_options.top_offset = 25;
+    table->card_options.middle_offset = height / 2 - table->card_options.height / 2;
+    table->card_options.bottom_offset = height - 25 - table->card_options.height;
     render_buffer(table);
 }
 
@@ -175,24 +210,25 @@ static void draw(GtkDrawingArea *table, cairo_t *cr, int width, int height, gpoi
     cairo_paint(cr);
 }
 
+static void gcribbage_table_advance_game(GCribbageTable *table, int player_position_choice) {
+    game_data_advance_game(table->game_data, player_position_choice);
+    render_buffer(table);
+    gtk_widget_queue_draw(GTK_WIDGET(table));
+}
+
 static void pressed(GtkGestureClick *gesture, int n_press, double x, double y, GtkWidget *area) {
     struct HitBox *hitbox;
     GCribbageTable *table = GCRIBBAGE_TABLE(area);
     for(int i = 0; i < table->num_hitboxes; i++) {
         hitbox = &table->hit_boxes[i];
         if (x > hitbox->x && x < hitbox->x + hitbox->width && y > hitbox->y && y < hitbox->y + hitbox->height) {
-            g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Position %d clicked", i + 1);
-            gcribbage_table_update_game_data(table, table->game_data, i + 1);
+            gcribbage_table_advance_game(table, i + 1);
         }
     }
 }
 
-void gcribbage_table_update_game_data(GCribbageTable *table, struct GameData *game_data, int player_choice_position) {
-    g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Received update");
-    table->game_data = game_data;
-    game_data_advance_game(table->game_data, player_choice_position);
-    render_buffer(table);
-    gtk_widget_queue_draw(GTK_WIDGET(table));
+void gcribbage_table_start_new_game(GCribbageTable *table) {
+    table->game_data = game_data_create();
 }
 
 static void gcribbage_table_init(GCribbageTable *table) {
@@ -201,7 +237,7 @@ static void gcribbage_table_init(GCribbageTable *table) {
     gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(press), GDK_BUTTON_PRIMARY);
     gtk_widget_add_controller(GTK_WIDGET(table), GTK_EVENT_CONTROLLER(press));
     g_signal_connect(press, "pressed", G_CALLBACK(pressed), table);
-    g_signal_connect(table, "resize", G_CALLBACK(allocate_buffer), NULL);
+    g_signal_connect(table, "resize", G_CALLBACK(gcribbage_table_handle_resize), NULL);
     GError *error = NULL;
     table->card_images = gdk_pixbuf_new_from_resource(
         "/com/ronsbrain/gcribbage/assets/cards.png",
@@ -211,12 +247,16 @@ static void gcribbage_table_init(GCribbageTable *table) {
         "/com/ronsbrain/gcribbage/assets/back.png",
         &error
     );
+    table->card_options.width = gdk_pixbuf_get_width(table->card_images) / 13;
+    table->card_options.height = gdk_pixbuf_get_height(table->card_images) / 4;
+    table->card_options.fan_spacing = 30;
     gtk_drawing_area_set_draw_func(
         GTK_DRAWING_AREA(table),
         draw,
         (gpointer)table,
         NULL
     );
+    table->game_data = game_data_create();
 }
 
 static void gcribbage_table_class_init (GCribbageTableClass *klass) {
