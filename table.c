@@ -20,6 +20,7 @@ struct HitBox {
     int y;
     int width;
     int height;
+    int advance_data;
 };
 
 struct _GCribbageTable {
@@ -40,6 +41,29 @@ GdkRGBA BACKGROUND_COLOR = { 0.f, 0.6f, 0.f, 1.f };
 void clear_buffer(cairo_t *cr) {
     gdk_cairo_set_source_rgba(cr, &BACKGROUND_COLOR);
     cairo_paint(cr);
+}
+
+#define PI 3.14159265358979323846
+void gcribbage_table_render_rounded_rectangle(
+        GCribbageTable *table,
+        double x,
+        double y,
+        double width,
+        double height,
+        double radius,
+        double r,
+        double g,
+        double b) {
+    cairo_new_sub_path(table->buffer_context);
+
+    cairo_arc(table->buffer_context, x + radius, y + radius, radius, PI, 3 * PI / 2);
+    cairo_arc(table->buffer_context, x + width - radius, y + radius, radius, 3 * PI / 2, 2 * PI);
+    cairo_arc(table->buffer_context, x + width - radius, y + height - radius, radius, 0, PI / 2);
+    cairo_arc(table->buffer_context, x + radius, y + height - radius, radius, PI / 2, PI);
+    cairo_close_path(table->buffer_context);
+
+    cairo_set_source_rgb(table->buffer_context, r, g, b);
+    cairo_fill(table->buffer_context);
 }
 
 void gcribbage_table_render_card(GCribbageTable *table, char card, int x, int y) {
@@ -80,25 +104,77 @@ void gcribbage_table_render_card_back(GCribbageTable *table, int x, int y) {
     cairo_fill(table->buffer_context);
 }
 
-/* Figures out how to center text and draws it on the table's buffer.
- * The y value is where you want the *BOTTOM* of the text to be.
- * TODO: Make this take in the lane and position for the text
- */
-void gcribbage_table_render_centered_text(GCribbageTable *table, char *text, int y) {
+void gcribbage_table_add_hit_box(GCribbageTable *table, int x, int y, int width, int height, int data) {
+    struct HitBox *hitbox;
+    hitbox = &table->hit_boxes[table->num_hitboxes];
+    hitbox->x = x;
+    hitbox->y = y;
+    hitbox->width = width;
+    hitbox->height = height;
+    hitbox->advance_data = data;
+    table->num_hitboxes++;
+}
+
+#define DIALOG_PADDING 10
+void gcribbage_table_render_dialog(GCribbageTable *table, char *text, int y, int show_ok) {
     cairo_surface_t *surface = cairo_get_target(table->buffer_context);
     int win_width = cairo_image_surface_get_width(surface);
-    cairo_text_extents_t extents;
-    cairo_text_extents(table->buffer_context, text, &extents);
-    int x = win_width / 2 - (int)extents.width / 2;
-    y += (int)extents.height;
+    cairo_text_extents_t dialog_extents, ok_extents;
+    cairo_text_extents(table->buffer_context, text, &dialog_extents);
+    int x = win_width / 2 - (int)dialog_extents.width / 2 - DIALOG_PADDING;
+    int width = (int)dialog_extents.width + DIALOG_PADDING * 2;
+    int height = (int)dialog_extents.height + DIALOG_PADDING * 2;
+    if (show_ok) {
+        /* Make room for the ok button */
+        cairo_text_extents(table->buffer_context, "OK", &ok_extents);
+        height += (int)ok_extents.height + DIALOG_PADDING * 3;
+    }
+    gcribbage_table_render_rounded_rectangle(
+        table,
+        x,
+        y,
+        width,
+        height,
+        5, // radius
+        0.13, // r
+        0.33, // g
+        0.21 // b
+    ); 
+
+    x = win_width / 2 - (int)dialog_extents.width / 2;
+    y += (int)dialog_extents.height + DIALOG_PADDING;
     cairo_set_source_rgb(table->buffer_context, 0.8, 0.8, 0.8);
     cairo_move_to(table->buffer_context, x, y);
     cairo_show_text(table->buffer_context, text);
+
+    if (show_ok) {
+        /* Extents will have OK text extents at this point */
+        x = win_width / 2 - (int)ok_extents.width / 2 - DIALOG_PADDING;
+        y += DIALOG_PADDING;
+        width = (int)ok_extents.width + DIALOG_PADDING * 2;
+        height = (int)ok_extents.height + DIALOG_PADDING * 2;
+        gcribbage_table_render_rounded_rectangle(
+            table,
+            x,
+            y,
+            width,
+            height,
+            5, // radius
+            0.21, // r
+            0.59, // g
+            0.37 // b
+        );
+        gcribbage_table_add_hit_box(table, x, y, width, height, 0);
+        x = win_width / 2 - (int)ok_extents.width / 2;
+        y += (int)ok_extents.height + DIALOG_PADDING;
+        cairo_set_source_rgb(table->buffer_context, 0.8, 0.8, 0.8);
+        cairo_move_to(table->buffer_context, x, y);
+        cairo_show_text(table->buffer_context, "OK");
+    }
 }
 
 void gcribbage_table_render_choose_dealer(GCribbageTable *table, struct RenderDeckCutScene *scene) {
-    struct HitBox *hitbox;
-    int width = table->card_options.fan_spacing * CARD_MAX_CUT_POSITIONS - 1 + table->card_options.width;
+    int width = table->card_options.fan_spacing * CARD_MAX_CUT_POSITIONS + table->card_options.width;
     cairo_surface_t *surface = cairo_get_target(table->buffer_context);
     int win_width = cairo_image_surface_get_width(surface);
 
@@ -117,20 +193,26 @@ void gcribbage_table_render_choose_dealer(GCribbageTable *table, struct RenderDe
                 width + i * table->card_options.fan_spacing,
                 table->card_options.top_offset
             );
-            hitbox = &table->hit_boxes[table->num_hitboxes];
             if (i < CARD_MAX_CUT_POSITIONS - 1) {
-                hitbox->x = width + i * table->card_options.fan_spacing;
-                hitbox->y = table->card_options.top_offset;
-                hitbox->width = hit_box_width + table->card_options.fan_spacing;
-                hitbox->height = table->card_options.height;
+                gcribbage_table_add_hit_box(
+                    table,
+                    width + i * table->card_options.fan_spacing,
+                    table->card_options.top_offset,
+                    hit_box_width + table->card_options.fan_spacing,
+                    table->card_options.height,
+                    i + 1
+                );
             } else {
-                hitbox->x = width + i * table->card_options.fan_spacing;
-                hitbox->y = table->card_options.top_offset;
-                hitbox->width = table->card_options.width;
-                hitbox->height = table->card_options.height;
+                gcribbage_table_add_hit_box(
+                    table,
+                    width + i * table->card_options.fan_spacing,
+                    table->card_options.top_offset,
+                    table->card_options.width,
+                    table->card_options.height,
+                    i + 1
+                );
             }
             hit_box_width = 0;
-            table->num_hitboxes++;
         }
     }
 
@@ -150,37 +232,89 @@ void gcribbage_table_render_choose_dealer(GCribbageTable *table, struct RenderDe
         );
 
         if ((scene->player_card & 0xf) < (scene->cpu_card & 0xf)) {
-            gcribbage_table_render_centered_text(
+            gcribbage_table_render_dialog(
                 table,
                 "You deal first.",
-                table->card_options.middle_offset
+                table->card_options.middle_offset,
+                1
             );
         } else {
-            gcribbage_table_render_centered_text(
+            gcribbage_table_render_dialog(
                 table,
                 "CPU deals first.",
-                table->card_options.middle_offset
+                table->card_options.middle_offset,
+                1
             );
         }
     } else {
-        gcribbage_table_render_centered_text(
+        gcribbage_table_render_dialog(
             table,
             "Choose a card. Lowest card deals first.",
-            table->card_options.middle_offset
+            table->card_options.middle_offset,
+            0
         );
     }
+}
+
+void gcribbage_table_render_choose_crib(GCribbageTable *table, struct ChooseCribScene *scene) {
+    int width = table->card_options.fan_spacing * 5 + table->card_options.width;
+    cairo_surface_t *surface = cairo_get_target(table->buffer_context);
+    int win_width = cairo_image_surface_get_width(surface);
+    int middle = win_width / 2;
+    width = middle - width / 2;
+
+    for (int i = 0; i < 6; i++){
+        gcribbage_table_render_card_back(
+            table,
+            width + i * table->card_options.fan_spacing,
+            table->card_options.top_offset
+        );
+        gcribbage_table_render_card(
+            table,
+            scene->player_cards[i],
+            width + i * table->card_options.fan_spacing,
+            table->card_options.bottom_offset
+        );
+        gcribbage_table_add_hit_box(
+            table,
+            width + i * table->card_options.fan_spacing,
+            table->card_options.bottom_offset,
+            table->card_options.width,
+            table->card_options.height,
+            POSITION_NONE
+        );
+    }
+
+    gcribbage_table_render_card_back (
+        table,
+        middle - (table->card_options.width + table->card_options.fan_spacing) * 2,
+        table->card_options.middle_offset
+    );
+
+    gcribbage_table_render_dialog(
+        table,
+        "Choose two cards for the crib.",
+        table->card_options.middle_offset,
+        0
+    );
+
+
 }
 
 void render_buffer(GCribbageTable *table) {
     struct RenderScene scene;
     game_data_get_render_scene(table->game_data, &scene);
     clear_buffer(table->buffer_context);
+    table->num_hitboxes = 0;
     switch (scene.type) {
         case DECK_CUT_SCENE:
             gcribbage_table_render_choose_dealer(
                 table,
                 &scene.deck_cut_scene
             );
+            break;
+        case CHOOSE_CRIB_SCENE:
+            gcribbage_table_render_choose_crib(table, &scene.choose_crib_scene);
             break;
         default:
             break;
@@ -216,6 +350,7 @@ static void draw(GtkDrawingArea *table, cairo_t *cr, int width, int height, gpoi
 }
 
 static void gcribbage_table_advance_game(GCribbageTable *table, int player_position_choice) {
+    g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Advancing game, position %d", player_position_choice);
     game_data_advance_game(table->game_data, player_position_choice);
     render_buffer(table);
     gtk_widget_queue_draw(GTK_WIDGET(table));
@@ -227,7 +362,8 @@ static void pressed(GtkGestureClick *gesture, int n_press, double x, double y, G
     for(int i = 0; i < table->num_hitboxes; i++) {
         hitbox = &table->hit_boxes[i];
         if (x > hitbox->x && x < hitbox->x + hitbox->width && y > hitbox->y && y < hitbox->y + hitbox->height) {
-            gcribbage_table_advance_game(table, i + 1);
+            gcribbage_table_advance_game(table, hitbox->advance_data);
+            break;
         }
     }
 }

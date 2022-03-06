@@ -6,6 +6,7 @@
 
 enum GameState {
     STATE_CHOOSE_DEALER,
+    STATE_CHOOSE_CRIB,
     STATE_PEGGING,
     STATE_COUNTING,
     STATE_WINNER
@@ -13,9 +14,10 @@ enum GameState {
 
 struct GameData {
     enum GameState state;
-    char player_chosen_cards[6];
-    char cpu_chosen_cards[6];
+    char player_hand[6];
+    char cpu_hand[6];
     char cut_cards[2];
+    char up_card;
 };
 
 /*
@@ -82,10 +84,22 @@ void game_data_advance_game(struct GameData *game_data, int player_choice_positi
             if (player_choice_position != POSITION_NONE) {
                 char chosen[2];
                 get_random_cards(2, chosen);
-                game_data->player_chosen_cards[0] = chosen[0];
-                game_data->cpu_chosen_cards[0] = chosen[1];
+                game_data->player_hand[0] = chosen[0];
+                game_data->cpu_hand[0] = chosen[1];
                 game_data->cut_cards[0] = player_choice_position;
                 game_data->cut_cards[1] = get_random_number(1, 13);
+            } else {
+                if (game_data->cut_cards[0] != POSITION_NONE) {
+                    /* Cards already cut, move on to crib building. */
+                    game_data->state = STATE_CHOOSE_CRIB;
+                    char cards[13];
+                    get_random_cards(13, cards);
+                    for (int i = 0; i < 6; i++) {
+                        game_data->player_hand[i] = cards[i];
+                        game_data->cpu_hand[i] = cards[i + 6];
+                    }
+                    game_data->up_card = cards[12];
+                }
             }
             break;
         default:
@@ -104,9 +118,21 @@ void game_data_get_render_scene(struct GameData *game_data, struct RenderScene *
         scene->type = BLANK_SCENE;
         return;
     }
-    scene->type = DECK_CUT_SCENE;
-    scene->deck_cut_scene.player_card = game_data->player_chosen_cards[0];
-    scene->deck_cut_scene.cpu_card = game_data->cpu_chosen_cards[0];
-    scene->deck_cut_scene.chosen_slots[0] = game_data->cut_cards[0];
-    scene->deck_cut_scene.chosen_slots[1] = game_data->cut_cards[1];
+    switch (game_data->state) {
+        case STATE_CHOOSE_DEALER:
+            scene->type = DECK_CUT_SCENE;
+            scene->deck_cut_scene.player_card = game_data->player_hand[0];
+            scene->deck_cut_scene.cpu_card = game_data->cpu_hand[0];
+            scene->deck_cut_scene.chosen_slots[0] = game_data->cut_cards[0];
+            scene->deck_cut_scene.chosen_slots[1] = game_data->cut_cards[1];
+            break;
+        case STATE_CHOOSE_CRIB:
+            scene->type = CHOOSE_CRIB_SCENE;
+            for (int i = 0; i < 6; i++) {
+                scene->choose_crib_scene.player_cards[i] = game_data->player_hand[i];
+            }
+            break;
+        default:
+            scene->type = BLANK_SCENE;
+    }
 }
