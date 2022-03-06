@@ -29,8 +29,14 @@ int get_random_number(int min, int max) {
 
 void get_random_cards(int num_cards, char *cards) {
     char *current = cards;
+    char chosen_cards[52] = {};
+    int choice;
     for (int i = 0; i < num_cards; i++) {
-        *current = possible_cards[get_random_number(0, 51)];
+        do {
+            choice = get_random_number(0, 51);
+        } while (chosen_cards[choice]);
+        *current = possible_cards[choice];
+        chosen_cards[choice] = 1;
         current++;
     }
 }
