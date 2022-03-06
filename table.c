@@ -60,7 +60,7 @@ void render_card_back(cairo_t *cr, GdkPixbuf *card_back, int x, int y) {
     cairo_fill(cr);
 }
 
-void render_choose_dealer(GCribbageTable *table) {
+void render_choose_dealer(GCribbageTable *table, char player_chosen_card, char cpu_chosen_card) {
     struct HitBox *hitbox;
     int width = CARD_FAN_SPACING * 12 + CARD_DIMENSIONS_WIDTH;
     cairo_surface_t *surface = cairo_get_target(table->buffer_context);
@@ -93,22 +93,59 @@ void render_choose_dealer(GCribbageTable *table) {
         table->num_hitboxes++;
     }
 
-    cairo_set_source_rgb(table->buffer_context, 0.8, 0.8, 0.8);
-    cairo_select_font_face(table->buffer_context, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-    cairo_set_font_size(table->buffer_context, 18);
-    cairo_move_to(table->buffer_context, width, CARD_CHOOSE_DEALER_OFFSET * 2 + CARD_DIMENSIONS_HEIGHT);
-    cairo_show_text(table->buffer_context, "Choose a card. Lowest card deals first.");
+    if (player_chosen_card != CARD_NONE) {
+        int rank, suit;
+        rank = player_chosen_card & 0xf;
+        suit = player_chosen_card & (1 << 4) >> 4;
+        render_card(
+            table->buffer_context,
+            table->card_images,
+            rank,
+            suit,
+            width,
+            CARD_CHOOSE_DEALER_OFFSET * 2 + CARD_DIMENSIONS_HEIGHT + CARD_FAN_SPACING
+        );
+
+        rank = cpu_chosen_card & 0xf;
+        suit = cpu_chosen_card & (1 << 4) >> 4;
+        render_card(
+            table->buffer_context,
+            table->card_images,
+            rank,
+            suit,
+            width + CARD_DIMENSIONS_WIDTH + CARD_FAN_SPACING,
+            CARD_CHOOSE_DEALER_OFFSET * 2 + CARD_DIMENSIONS_HEIGHT + CARD_FAN_SPACING
+        );
+
+        cairo_set_source_rgb(table->buffer_context, 0.8, 0.8, 0.8);
+        cairo_select_font_face(table->buffer_context, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+        cairo_set_font_size(table->buffer_context, 18);
+        cairo_move_to(table->buffer_context, width, CARD_CHOOSE_DEALER_OFFSET * 2 + CARD_DIMENSIONS_HEIGHT);
+        if ((player_chosen_card & 0xf) < (cpu_chosen_card & 0xf)) {
+            cairo_show_text(table->buffer_context, "You deal first.");
+        } else {
+            cairo_show_text(table->buffer_context, "CPU deals first.");
+        }
+    } else {
+        cairo_set_source_rgb(table->buffer_context, 0.8, 0.8, 0.8);
+        cairo_select_font_face(table->buffer_context, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+        cairo_set_font_size(table->buffer_context, 18);
+        cairo_move_to(table->buffer_context, width, CARD_CHOOSE_DEALER_OFFSET * 2 + CARD_DIMENSIONS_HEIGHT);
+        cairo_show_text(table->buffer_context, "Choose a card. Lowest card deals first.");
+    }
 }
 
 void render_buffer(GCribbageTable *table) {
+    struct RenderScene scene;
+    game_data_get_render_scene(table->game_data, &scene);
     clear_buffer(table->buffer_context);
-    if (!table->game_data) {
-        return;
-    }
-
-    switch(table->game_data->state) {
-        case CHOOSE_DEALER:
-            render_choose_dealer(table);
+    switch (scene.type) {
+        case DECK_CUT_SCENE:
+            render_choose_dealer(
+                table,
+                scene.deck_cut_scene.player_card,
+                scene.deck_cut_scene.cpu_card
+            );
             break;
         default:
             break;
@@ -144,14 +181,16 @@ static void pressed(GtkGestureClick *gesture, int n_press, double x, double y, G
     for(int i = 0; i < table->num_hitboxes; i++) {
         hitbox = &table->hit_boxes[i];
         if (x > hitbox->x && x < hitbox->x + hitbox->width && y > hitbox->y && y < hitbox->y + hitbox->height) {
-            g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Position %d clicked", i);
+            g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Position %d clicked", i + 1);
+            gcribbage_table_update_game_data(table, table->game_data, i + 1);
         }
     }
 }
 
-void gcribbage_table_update_game_data(GCribbageTable *table, struct GameData *game_data) {
+void gcribbage_table_update_game_data(GCribbageTable *table, struct GameData *game_data, int player_choice_position) {
     g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Received update");
     table->game_data = game_data;
+    game_data_advance_game(table->game_data, player_choice_position);
     render_buffer(table);
     gtk_widget_queue_draw(GTK_WIDGET(table));
 }

@@ -11,8 +11,8 @@ struct _GCribbageApplication {
 G_DEFINE_TYPE(GCribbageApplication, gcribbage_application, GTK_TYPE_APPLICATION);
 
 struct GameData *gcribbage_application_new_game(GCribbageApplication *app) {
-    g_free((gpointer)app->game_data);
-    app->game_data = (struct GameData *)g_malloc0(sizeof(struct GameData));
+    game_data_destroy(app->game_data);
+    app->game_data = game_data_create();
     return app->game_data;
 }
 
