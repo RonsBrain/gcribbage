@@ -17,7 +17,20 @@ struct GameData {
     char cpu_chosen_cards[6];
 };
 
-char possible_cards[52] = {};
+/*
+ * A card is represented by six bytes. The lower four represent the rank,
+ * and the upper two represents the suit.
+ *
+ * To check the suit of a card, you will need to do compare only
+ * the upper two bits, but for cribbage, knowing the exact suit is
+ * not important for scoring, only that cards are the same suit.
+ */
+char possible_cards[52] = {
+    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+    0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d,
+    0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
+    0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d
+};
 
 /* Uses rejection sampling to return a random value between min and max inclusive */
 int get_random_number(int min, int max) {
@@ -45,26 +58,6 @@ struct GameData *game_data_create() {
     /* Not the best place to initialize random number seed. */
     srand(time(0));
     
-    /*
-     * A card is represented by six bytes. The lower four represent the rank,
-     * and the upper two represents the suit.
-     *
-     * To check the suit of a card, you will need to do compare only
-     * the upper two bits, but for cribbage, knowing the exact suit is
-     * not important for scoring, only that cards are the same suit.
-     */
-
-    /* We can probably find a better place for this too. */
-    if (possible_cards[0] == CARD_NONE) {
-        int i = 0;
-        for (int suit = 0; suit <= 4; suit++) {
-            for (int rank = 1; rank < 14; rank++) {
-                possible_cards[i] = (suit << 4) | rank;
-                i++;
-            }
-        }
-    }
-
     /* 0 is a valid value for all initial values of GameData.
      * If this ever becomes not the case, then the allocated memory
      * should be initialized before returning it.
