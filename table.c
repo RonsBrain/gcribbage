@@ -1,5 +1,6 @@
 #include <cairo.h>
 #include <gtk/gtk.h>
+#include "hitbox.h"
 #include "table.h"
 #include "simulation.h"
 
@@ -15,21 +16,13 @@ struct CardOptions {
     int bottom_offset;
 };
 
-struct HitBox {
-    int x;
-    int y;
-    int width;
-    int height;
-    int advance_data;
-};
-
 struct _GCribbageTable {
     GtkWidget parent;
     struct GameData *game_data;
     cairo_t *buffer_context;
     GdkPixbuf *card_images;
     GdkPixbuf *card_back;
-    struct HitBox hit_boxes[MAX_HITBOXES];
+    struct HitboxList hitbox_list;
     int num_hitboxes;
     struct CardOptions card_options;
 };
@@ -104,17 +97,6 @@ void gcribbage_table_render_card_back(GCribbageTable *table, int x, int y) {
     cairo_fill(table->buffer_context);
 }
 
-void gcribbage_table_add_hit_box(GCribbageTable *table, int x, int y, int width, int height, int data) {
-    struct HitBox *hitbox;
-    hitbox = &table->hit_boxes[table->num_hitboxes];
-    hitbox->x = x;
-    hitbox->y = y;
-    hitbox->width = width;
-    hitbox->height = height;
-    hitbox->advance_data = data;
-    table->num_hitboxes++;
-}
-
 #define DIALOG_PADDING 10
 void gcribbage_table_render_dialog(GCribbageTable *table, char *text, int y, int show_ok) {
     cairo_surface_t *surface = cairo_get_target(table->buffer_context);
@@ -164,7 +146,7 @@ void gcribbage_table_render_dialog(GCribbageTable *table, char *text, int y, int
             0.59, // g
             0.37 // b
         );
-        gcribbage_table_add_hit_box(table, x, y, width, height, 0);
+        hitbox_list_add_hitbox(&table->hitbox_list, x, y, width, height, 0);
         x = win_width / 2 - (int)ok_extents.width / 2;
         y += (int)ok_extents.height + DIALOG_PADDING;
         cairo_set_source_rgb(table->buffer_context, 0.8, 0.8, 0.8);
@@ -177,11 +159,8 @@ void gcribbage_table_render_choose_dealer(GCribbageTable *table, struct RenderDe
     int width = table->card_options.fan_spacing * CARD_MAX_CUT_POSITIONS + table->card_options.width;
     cairo_surface_t *surface = cairo_get_target(table->buffer_context);
     int win_width = cairo_image_surface_get_width(surface);
-
+    hitbox_list_clear(&table->hitbox_list);
     width = win_width / 2 - width / 2;
-
-    // Reset hitbox count to 0
-    table->num_hitboxes = 0;
 
     int hit_box_width = 0;
     for (int i = 0; i < CARD_MAX_CUT_POSITIONS; i++) {
@@ -194,8 +173,8 @@ void gcribbage_table_render_choose_dealer(GCribbageTable *table, struct RenderDe
                 table->card_options.top_offset
             );
             if (i < CARD_MAX_CUT_POSITIONS - 1) {
-                gcribbage_table_add_hit_box(
-                    table,
+                hitbox_list_add_hitbox(
+                    &table->hitbox_list,
                     width + i * table->card_options.fan_spacing,
                     table->card_options.top_offset,
                     hit_box_width + table->card_options.fan_spacing,
@@ -203,8 +182,8 @@ void gcribbage_table_render_choose_dealer(GCribbageTable *table, struct RenderDe
                     i + 1
                 );
             } else {
-                gcribbage_table_add_hit_box(
-                    table,
+                hitbox_list_add_hitbox(
+                    &table->hitbox_list,
                     width + i * table->card_options.fan_spacing,
                     table->card_options.top_offset,
                     table->card_options.width,
@@ -275,8 +254,8 @@ void gcribbage_table_render_choose_crib(GCribbageTable *table, struct ChooseCrib
             width + i * table->card_options.fan_spacing,
             table->card_options.bottom_offset
         );
-        gcribbage_table_add_hit_box(
-            table,
+        hitbox_list_add_hitbox(
+            &table->hitbox_list,
             width + i * table->card_options.fan_spacing,
             table->card_options.bottom_offset,
             table->card_options.width,
@@ -305,7 +284,7 @@ void render_buffer(GCribbageTable *table) {
     struct RenderScene scene;
     game_data_get_render_scene(table->game_data, &scene);
     clear_buffer(table->buffer_context);
-    table->num_hitboxes = 0;
+    hitbox_list_clear(&table->hitbox_list);
     switch (scene.type) {
         case DECK_CUT_SCENE:
             gcribbage_table_render_choose_dealer(
@@ -357,14 +336,11 @@ static void gcribbage_table_advance_game(GCribbageTable *table, int player_posit
 }
 
 static void pressed(GtkGestureClick *gesture, int n_press, double x, double y, GtkWidget *area) {
-    struct HitBox *hitbox;
+    struct Hitbox *hitbox;
     GCribbageTable *table = GCRIBBAGE_TABLE(area);
-    for(int i = 0; i < table->num_hitboxes; i++) {
-        hitbox = &table->hit_boxes[i];
-        if (x > hitbox->x && x < hitbox->x + hitbox->width && y > hitbox->y && y < hitbox->y + hitbox->height) {
-            gcribbage_table_advance_game(table, hitbox->advance_data);
-            break;
-        }
+    hitbox = hitbox_list_intersection(&table->hitbox_list, (int)x, (int)y);
+    if (hitbox) {
+        gcribbage_table_advance_game(table, hitbox->data);
     }
 }
 
