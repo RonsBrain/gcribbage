@@ -10,6 +10,7 @@ sources = [
     'simulation.c',
     'hitbox.c',
     'drawing.c',
+    'scenes.c',
     resources
 ]
 executable('gcribbage', sources: sources, dependencies: gtkdeps)
