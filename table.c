@@ -14,7 +14,6 @@ struct _GCribbageTable {
     struct GameData *game_data;
     cairo_t *buffer_context;
     struct HitboxList hitbox_list;
-    int num_hitboxes;
     struct LayoutOptions layout_options;
 };
 
@@ -83,7 +82,6 @@ static void draw(GtkDrawingArea *table, cairo_t *cr, int width, int height, gpoi
 }
 
 static void gcribbage_table_advance_game(GCribbageTable *table, int player_position_choice) {
-    g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Advancing game, position %d", player_position_choice);
     game_data_advance_game(table->game_data, player_position_choice);
     render_buffer(table);
     gtk_widget_queue_draw(GTK_WIDGET(table));

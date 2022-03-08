@@ -22,7 +22,9 @@ struct RenderDeckCutScene {
 };
 
 struct ChooseCribScene {
+    int ready_to_proceed;
     char player_cards[6];
+    char player_crib_choices[2];
 };
 
 struct RenderScene {

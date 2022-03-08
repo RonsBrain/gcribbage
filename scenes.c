@@ -119,23 +119,36 @@ void scene_choose_crib(cairo_t *renderer, struct ChooseCribScene *scene, struct 
             layout_options->card_width,
             layout_options->card_height
         );
+        int offset = 0;
+        if (i + 1 == scene->player_crib_choices[0] || i + 1 == scene->player_crib_choices[1]) {
+            /* This card is chosen, so draw it offset slightly */
+            offset = layout_options->fan_spacing;
+        }
         draw_card(
             renderer,
             layout_options->card_images,
             scene->player_cards[i],
             width + i * layout_options->fan_spacing,
-            layout_options->bottom_offset,
+            layout_options->bottom_offset - offset,
             layout_options->card_width,
             layout_options->card_height
         );
-        hitbox_list_add_hitbox(
-            hitbox_list,
-            width + i * layout_options->fan_spacing,
-            layout_options->bottom_offset,
-            layout_options->card_width,
-            layout_options->card_height,
-            POSITION_NONE
-        );
+        if (!scene->ready_to_proceed || (scene->ready_to_proceed && offset)) {
+            /* If the player has not selected enough cards, we want them to be
+             * able to select any of them.
+             *
+             * If the player has selected two cards, we want them to be able to
+             * back out but we don't want them to select more cards.
+             */
+            hitbox_list_add_hitbox(
+                hitbox_list,
+                width + i * layout_options->fan_spacing,
+                layout_options->bottom_offset - offset,
+                i == 5 ? layout_options->card_width : layout_options->fan_spacing,
+                layout_options->card_height,
+                i + 1
+            );
+        }
     }
 
     draw_card_back (
@@ -147,15 +160,25 @@ void scene_choose_crib(cairo_t *renderer, struct ChooseCribScene *scene, struct 
         layout_options->card_height
     );
 
-    draw_dialog(
-        renderer,
-        "Choose two cards for the crib.",
-        NULL,
-        win_width / 2,
-        layout_options->middle_offset,
-        layout_options->padding,
-        0
-    );
-
-
+    if (!scene->ready_to_proceed) {
+        draw_dialog(
+            renderer,
+            "Choose two cards for the crib.",
+            NULL,
+            win_width / 2,
+            layout_options->middle_offset,
+            layout_options->padding,
+            0
+        );
+    } else {
+        draw_dialog(
+            renderer,
+            "Are these the crib cards?",
+            hitbox_list,
+            win_width / 2,
+            layout_options->middle_offset,
+            layout_options->padding,
+            0
+        );
+    }
 }
