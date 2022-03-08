@@ -1,12 +1,12 @@
-# Features
-- Choosing crib
+# MVP 
 - Pegging
 - Counting hands
 - Game end
+
+# More features
 - Statistics
 - Crib selection misplays
 - Pegging misplays
 
 # Tech debt
-- GCribbageTable has too much responsibility
 - Look into better card image system
