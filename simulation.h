@@ -16,15 +16,15 @@ struct BlankScene {
 };
 
 struct RenderDeckCutScene {
-    char player_card;
+    char human_card;
     char cpu_card;
     int chosen_slots[2];
 };
 
 struct ChooseCribScene {
     int ready_to_proceed;
-    char player_cards[6];
-    char player_crib_choices[2];
+    char human_cards[6];
+    char human_crib_choices[2];
 };
 
 struct RenderScene {
@@ -38,5 +38,5 @@ struct RenderScene {
 
 struct GameData *game_data_create();
 void game_data_destroy(struct GameData *game_data);
-void game_data_advance_game(struct GameData *game_data, int player_choice_position);
+void game_data_advance_game(struct GameData *game_data, int human_choice_position);
 void game_data_get_render_scene(struct GameData *game_data, struct RenderScene *scene);

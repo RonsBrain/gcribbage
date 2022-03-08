@@ -13,12 +13,12 @@ enum GameState {
 
 struct GameData {
     enum GameState state;
-    char player_hand[6];
+    char human_hand[6];
     char cpu_hand[6];
     char crib_hand[4];
     char cut_cards[2];
     char up_card;
-    int player_crib_choices[2];
+    int human_crib_choices[2];
 };
 
 /*
@@ -79,16 +79,16 @@ void game_data_destroy(struct GameData *game_data) {
  * program, so we can be sure that only this function is changing
  * game state
  */
-void game_data_advance_game(struct GameData *game_data, int player_choice_position) {
+void game_data_advance_game(struct GameData *game_data, int human_choice_position) {
     int ready_to_proceed;
     switch (game_data->state) {
         case (STATE_CHOOSE_DEALER):
-            if (player_choice_position != POSITION_NONE) {
+            if (human_choice_position != POSITION_NONE) {
                 char chosen[2];
                 get_random_cards(2, chosen);
-                game_data->player_hand[0] = chosen[0];
+                game_data->human_hand[0] = chosen[0];
                 game_data->cpu_hand[0] = chosen[1];
-                game_data->cut_cards[0] = player_choice_position;
+                game_data->cut_cards[0] = human_choice_position;
                 game_data->cut_cards[1] = get_random_number(1, 13);
             } else {
                 if (game_data->cut_cards[0] != POSITION_NONE) {
@@ -97,7 +97,7 @@ void game_data_advance_game(struct GameData *game_data, int player_choice_positi
                     char cards[13];
                     get_random_cards(13, cards);
                     for (int i = 0; i < 6; i++) {
-                        game_data->player_hand[i] = cards[i];
+                        game_data->human_hand[i] = cards[i];
                         game_data->cpu_hand[i] = cards[i + 6];
                     }
                     game_data->up_card = cards[12];
@@ -106,11 +106,11 @@ void game_data_advance_game(struct GameData *game_data, int player_choice_positi
             break;
         case (STATE_CHOOSE_CRIB):
             ready_to_proceed = (
-                game_data->player_crib_choices[0] != POSITION_NONE &&
-                game_data->player_crib_choices[1] != POSITION_NONE
+                game_data->human_crib_choices[0] != POSITION_NONE &&
+                game_data->human_crib_choices[1] != POSITION_NONE
             );
 
-            if (player_choice_position != POSITION_NONE) {
+            if (human_choice_position != POSITION_NONE) {
                 if  (ready_to_proceed) {
                     /* Two cards already chosen, choosing another is illegal.
                      * Do not advance the game.
@@ -119,28 +119,28 @@ void game_data_advance_game(struct GameData *game_data, int player_choice_positi
                 }
                 int removed = 0;
                 for (int i = 0; i < 2; i++) {
-                    if (game_data->player_crib_choices[i] == player_choice_position) {
-                        game_data->player_crib_choices[i] = POSITION_NONE;
+                    if (game_data->human_crib_choices[i] == human_choice_position) {
+                        game_data->human_crib_choices[i] = POSITION_NONE;
                         removed = 1;
                     }
                 }
                 if (!removed) {
-                   if (game_data->player_crib_choices[0] == POSITION_NONE) {
-                       game_data->player_crib_choices[0] = player_choice_position;
+                   if (game_data->human_crib_choices[0] == POSITION_NONE) {
+                       game_data->human_crib_choices[0] = human_choice_position;
                    } else {
-                       game_data->player_crib_choices[1] = player_choice_position;
+                       game_data->human_crib_choices[1] = human_choice_position;
                    }
                 }
             } else {
                 if (!ready_to_proceed) {
                     for (int i = 0; i < 2; i++) {
-                        game_data->player_crib_choices[i] = 0;
+                        game_data->human_crib_choices[i] = 0;
                     }
                 } else {
                     game_data->state = STATE_PEGGING;
                     for (int i = 0; i < 2; i++) {
-                        game_data->crib_hand[i] = game_data->player_hand[game_data->player_crib_choices[i]];
-                        game_data->player_hand[game_data->player_crib_choices[i]] = 0;
+                        game_data->crib_hand[i] = game_data->human_hand[game_data->human_crib_choices[i]];
+                        game_data->human_hand[game_data->human_crib_choices[i]] = 0;
                         /* TODO: Implement actual CPU AI instead of random crib choice */
                         game_data->crib_hand[i + 2] = game_data->cpu_hand[i];
                     }
@@ -166,7 +166,7 @@ void game_data_get_render_scene(struct GameData *game_data, struct RenderScene *
     switch (game_data->state) {
         case STATE_CHOOSE_DEALER:
             scene->type = DECK_CUT_SCENE;
-            scene->deck_cut_scene.player_card = game_data->player_hand[0];
+            scene->deck_cut_scene.human_card = game_data->human_hand[0];
             scene->deck_cut_scene.cpu_card = game_data->cpu_hand[0];
             scene->deck_cut_scene.chosen_slots[0] = game_data->cut_cards[0];
             scene->deck_cut_scene.chosen_slots[1] = game_data->cut_cards[1];
@@ -174,11 +174,11 @@ void game_data_get_render_scene(struct GameData *game_data, struct RenderScene *
         case STATE_CHOOSE_CRIB:
             scene->type = CHOOSE_CRIB_SCENE;
             for (int i = 0; i < 6; i++) {
-                scene->choose_crib_scene.player_cards[i] = game_data->player_hand[i];
+                scene->choose_crib_scene.human_cards[i] = game_data->human_hand[i];
             }
-            scene->choose_crib_scene.player_crib_choices[0] = game_data->player_crib_choices[0];
-            scene->choose_crib_scene.player_crib_choices[1] = game_data->player_crib_choices[1];
-            scene->choose_crib_scene.ready_to_proceed = (game_data->player_crib_choices[0] != POSITION_NONE && game_data->player_crib_choices[1] != POSITION_NONE);
+            scene->choose_crib_scene.human_crib_choices[0] = game_data->human_crib_choices[0];
+            scene->choose_crib_scene.human_crib_choices[1] = game_data->human_crib_choices[1];
+            scene->choose_crib_scene.ready_to_proceed = (game_data->human_crib_choices[0] != POSITION_NONE && game_data->human_crib_choices[1] != POSITION_NONE);
             break;
         default:
             scene->type = BLANK_SCENE;

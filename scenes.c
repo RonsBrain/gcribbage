@@ -48,11 +48,11 @@ void scene_choose_dealer(cairo_t *renderer, struct RenderDeckCutScene *scene, st
         }
     }
 
-    if (scene->player_card != CARD_NONE) {
+    if (scene->human_card != CARD_NONE) {
         draw_card(
             renderer,
             layout_options->card_images,
-            scene->player_card,
+            scene->human_card,
             width,
             layout_options->middle_offset,
             layout_options->card_width,
@@ -69,7 +69,7 @@ void scene_choose_dealer(cairo_t *renderer, struct RenderDeckCutScene *scene, st
             layout_options->card_height
         );
 
-        if ((scene->player_card & 0xf) < (scene->cpu_card & 0xf)) {
+        if ((scene->human_card & 0xf) < (scene->cpu_card & 0xf)) {
             draw_dialog(
                 renderer,
                 "You deal first.",
@@ -120,24 +120,24 @@ void scene_choose_crib(cairo_t *renderer, struct ChooseCribScene *scene, struct 
             layout_options->card_height
         );
         int offset = 0;
-        if (i + 1 == scene->player_crib_choices[0] || i + 1 == scene->player_crib_choices[1]) {
+        if (i + 1 == scene->human_crib_choices[0] || i + 1 == scene->human_crib_choices[1]) {
             /* This card is chosen, so draw it offset slightly */
             offset = layout_options->fan_spacing;
         }
         draw_card(
             renderer,
             layout_options->card_images,
-            scene->player_cards[i],
+            scene->human_cards[i],
             width + i * layout_options->fan_spacing,
             layout_options->bottom_offset - offset,
             layout_options->card_width,
             layout_options->card_height
         );
         if (!scene->ready_to_proceed || (scene->ready_to_proceed && offset)) {
-            /* If the player has not selected enough cards, we want them to be
+            /* If the human has not selected enough cards, we want them to be
              * able to select any of them.
              *
-             * If the player has selected two cards, we want them to be able to
+             * If the human has selected two cards, we want them to be able to
              * back out but we don't want them to select more cards.
              */
             hitbox_list_add_hitbox(
