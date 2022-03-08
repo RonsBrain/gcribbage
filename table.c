@@ -1,5 +1,6 @@
 #include <cairo.h>
 #include <gtk/gtk.h>
+#include "drawing.h"
 #include "hitbox.h"
 #include "table.h"
 #include "simulation.h"
@@ -14,6 +15,7 @@ struct CardOptions {
     int top_offset;
     int middle_offset;
     int bottom_offset;
+    int padding;
 };
 
 struct _GCribbageTable {
@@ -36,125 +38,6 @@ void clear_buffer(cairo_t *cr) {
     cairo_paint(cr);
 }
 
-#define PI 3.14159265358979323846
-void gcribbage_table_render_rounded_rectangle(
-        GCribbageTable *table,
-        double x,
-        double y,
-        double width,
-        double height,
-        double radius,
-        double r,
-        double g,
-        double b) {
-    cairo_new_sub_path(table->buffer_context);
-
-    cairo_arc(table->buffer_context, x + radius, y + radius, radius, PI, 3 * PI / 2);
-    cairo_arc(table->buffer_context, x + width - radius, y + radius, radius, 3 * PI / 2, 2 * PI);
-    cairo_arc(table->buffer_context, x + width - radius, y + height - radius, radius, 0, PI / 2);
-    cairo_arc(table->buffer_context, x + radius, y + height - radius, radius, PI / 2, PI);
-    cairo_close_path(table->buffer_context);
-
-    cairo_set_source_rgb(table->buffer_context, r, g, b);
-    cairo_fill(table->buffer_context);
-}
-
-void gcribbage_table_render_card(GCribbageTable *table, char card, int x, int y) {
-    int rank = (card & 0xf) - 1;  // Rank goes from 1 - 13 but we want to offset from 0
-    int suit = (card >> 4);
-    int src_x = table->card_options.width * rank;
-    int src_y = table->card_options.height * suit;
-    gdk_cairo_set_source_pixbuf(
-        table->buffer_context,
-        table->card_images,
-        x - src_x,
-        y - src_y
-    );
-    cairo_rectangle(
-        table->buffer_context,
-        x,
-        y,
-        table->card_options.width,
-        table->card_options.height
-    );
-    cairo_fill(table->buffer_context);
-}
-
-void gcribbage_table_render_card_back(GCribbageTable *table, int x, int y) {
-    gdk_cairo_set_source_pixbuf(
-        table->buffer_context,
-        table->card_back,
-        x,
-        y
-    );
-    cairo_rectangle(
-        table->buffer_context,
-        x,
-        y,
-        table->card_options.width,
-        table->card_options.height
-    );
-    cairo_fill(table->buffer_context);
-}
-
-#define DIALOG_PADDING 10
-void gcribbage_table_render_dialog(GCribbageTable *table, char *text, int y, int show_ok) {
-    cairo_surface_t *surface = cairo_get_target(table->buffer_context);
-    int win_width = cairo_image_surface_get_width(surface);
-    cairo_text_extents_t dialog_extents, ok_extents;
-    cairo_text_extents(table->buffer_context, text, &dialog_extents);
-    int x = win_width / 2 - (int)dialog_extents.width / 2 - DIALOG_PADDING;
-    int width = (int)dialog_extents.width + DIALOG_PADDING * 2;
-    int height = (int)dialog_extents.height + DIALOG_PADDING * 2;
-    if (show_ok) {
-        /* Make room for the ok button */
-        cairo_text_extents(table->buffer_context, "OK", &ok_extents);
-        height += (int)ok_extents.height + DIALOG_PADDING * 3;
-    }
-    gcribbage_table_render_rounded_rectangle(
-        table,
-        x,
-        y,
-        width,
-        height,
-        5, // radius
-        0.13, // r
-        0.33, // g
-        0.21 // b
-    ); 
-
-    x = win_width / 2 - (int)dialog_extents.width / 2;
-    y += (int)dialog_extents.height + DIALOG_PADDING;
-    cairo_set_source_rgb(table->buffer_context, 0.8, 0.8, 0.8);
-    cairo_move_to(table->buffer_context, x, y);
-    cairo_show_text(table->buffer_context, text);
-
-    if (show_ok) {
-        /* Extents will have OK text extents at this point */
-        x = win_width / 2 - (int)ok_extents.width / 2 - DIALOG_PADDING;
-        y += DIALOG_PADDING;
-        width = (int)ok_extents.width + DIALOG_PADDING * 2;
-        height = (int)ok_extents.height + DIALOG_PADDING * 2;
-        gcribbage_table_render_rounded_rectangle(
-            table,
-            x,
-            y,
-            width,
-            height,
-            5, // radius
-            0.21, // r
-            0.59, // g
-            0.37 // b
-        );
-        hitbox_list_add_hitbox(&table->hitbox_list, x, y, width, height, 0);
-        x = win_width / 2 - (int)ok_extents.width / 2;
-        y += (int)ok_extents.height + DIALOG_PADDING;
-        cairo_set_source_rgb(table->buffer_context, 0.8, 0.8, 0.8);
-        cairo_move_to(table->buffer_context, x, y);
-        cairo_show_text(table->buffer_context, "OK");
-    }
-}
-
 void gcribbage_table_render_choose_dealer(GCribbageTable *table, struct RenderDeckCutScene *scene) {
     int width = table->card_options.fan_spacing * CARD_MAX_CUT_POSITIONS + table->card_options.width;
     cairo_surface_t *surface = cairo_get_target(table->buffer_context);
@@ -167,10 +50,13 @@ void gcribbage_table_render_choose_dealer(GCribbageTable *table, struct RenderDe
         if (i == scene->chosen_slots[0] || i == scene->chosen_slots[1]) {
             hit_box_width += table->card_options.fan_spacing;
         } else {
-            gcribbage_table_render_card_back(
-                table,
+            draw_card_back(
+                table->buffer_context,
+                table->card_back,
                 width + i * table->card_options.fan_spacing,
-                table->card_options.top_offset
+                table->card_options.top_offset,
+                table->card_options.width,
+                table->card_options.height
             );
             if (i < CARD_MAX_CUT_POSITIONS - 1) {
                 hitbox_list_add_hitbox(
@@ -196,40 +82,55 @@ void gcribbage_table_render_choose_dealer(GCribbageTable *table, struct RenderDe
     }
 
     if (scene->player_card != CARD_NONE) {
-        gcribbage_table_render_card(
-            table,
+        draw_card(
+            table->buffer_context,
+            table->card_images,
             scene->player_card,
             width,
-            table->card_options.middle_offset
+            table->card_options.middle_offset,
+            table->card_options.width,
+            table->card_options.height
         );
 
-        gcribbage_table_render_card(
-            table,
+        draw_card(
+            table->buffer_context,
+            table->card_images,
             scene->cpu_card,
             width + table->card_options.fan_spacing * 12,
-            table->card_options.middle_offset
+            table->card_options.middle_offset,
+            table->card_options.width,
+            table->card_options.height
         );
 
         if ((scene->player_card & 0xf) < (scene->cpu_card & 0xf)) {
-            gcribbage_table_render_dialog(
-                table,
+            draw_dialog(
+                table->buffer_context,
                 "You deal first.",
+                &table->hitbox_list,
+                win_width / 2,
                 table->card_options.middle_offset,
-                1
+                table->card_options.padding,
+                0
             );
         } else {
-            gcribbage_table_render_dialog(
-                table,
+            draw_dialog(
+                table->buffer_context,
                 "CPU deals first.",
+                &table->hitbox_list,
+                win_width / 2,
                 table->card_options.middle_offset,
-                1
+                table->card_options.padding,
+                0
             );
         }
     } else {
-        gcribbage_table_render_dialog(
-            table,
+        draw_dialog(
+            table->buffer_context,
             "Choose a card. Lowest card deals first.",
+            NULL,
+            win_width / 2,
             table->card_options.middle_offset,
+            table->card_options.padding,
             0
         );
     }
@@ -243,16 +144,22 @@ void gcribbage_table_render_choose_crib(GCribbageTable *table, struct ChooseCrib
     width = middle - width / 2;
 
     for (int i = 0; i < 6; i++){
-        gcribbage_table_render_card_back(
-            table,
+        draw_card_back(
+            table->buffer_context,
+            table->card_back,
             width + i * table->card_options.fan_spacing,
-            table->card_options.top_offset
+            table->card_options.top_offset,
+            table->card_options.width,
+            table->card_options.height
         );
-        gcribbage_table_render_card(
-            table,
+        draw_card(
+            table->buffer_context,
+            table->card_images,
             scene->player_cards[i],
             width + i * table->card_options.fan_spacing,
-            table->card_options.bottom_offset
+            table->card_options.bottom_offset,
+            table->card_options.width,
+            table->card_options.height
         );
         hitbox_list_add_hitbox(
             &table->hitbox_list,
@@ -264,16 +171,22 @@ void gcribbage_table_render_choose_crib(GCribbageTable *table, struct ChooseCrib
         );
     }
 
-    gcribbage_table_render_card_back (
-        table,
+    draw_card_back (
+        table->buffer_context,
+        table->card_back,
         middle - (table->card_options.width + table->card_options.fan_spacing) * 2,
-        table->card_options.middle_offset
+        table->card_options.middle_offset,
+        table->card_options.width,
+        table->card_options.height
     );
 
-    gcribbage_table_render_dialog(
-        table,
+    draw_dialog(
+        table->buffer_context,
         "Choose two cards for the crib.",
+        NULL,
+        win_width / 2,
         table->card_options.middle_offset,
+        table->card_options.padding,
         0
     );
 
@@ -283,7 +196,7 @@ void gcribbage_table_render_choose_crib(GCribbageTable *table, struct ChooseCrib
 void render_buffer(GCribbageTable *table) {
     struct RenderScene scene;
     game_data_get_render_scene(table->game_data, &scene);
-    clear_buffer(table->buffer_context);
+    draw_clear_buffer(table->buffer_context, &BACKGROUND_COLOR);
     hitbox_list_clear(&table->hitbox_list);
     switch (scene.type) {
         case DECK_CUT_SCENE:
@@ -367,6 +280,7 @@ static void gcribbage_table_init(GCribbageTable *table) {
     table->card_options.width = gdk_pixbuf_get_width(table->card_images) / 13;
     table->card_options.height = gdk_pixbuf_get_height(table->card_images) / 4;
     table->card_options.fan_spacing = 30;
+    table->card_options.padding = 5;
     gtk_drawing_area_set_draw_func(
         GTK_DRAWING_AREA(table),
         draw,
