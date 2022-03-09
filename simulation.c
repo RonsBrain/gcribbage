@@ -8,7 +8,8 @@ enum GameState {
   STATE_CHOOSE_CRIB,
   STATE_PEGGING,
   STATE_COUNTING,
-  STATE_WINNER
+  STATE_WINNER,
+  STATE_END
 };
 
 struct GameData {
@@ -78,88 +79,97 @@ void game_data_destroy(struct GameData *game_data) {
   }
 }
 
+void game_data_handle_state_not_implemented(struct GameData *game_data,
+                                            int position) {}
+
+void game_data_handle_state_choose_dealer(struct GameData *game_data,
+                                          int human_choice_position) {
+  if (human_choice_position != POSITION_NONE) {
+    char chosen[2] = {};
+    while ((chosen[0] & 0xf) == (chosen[1] & 0xf)) {
+      /* Let's not entertain tie cuts. Always make the cut have a winner. */
+      get_random_cards(2, chosen);
+    }
+    game_data->human_hand[0] = chosen[0];
+    game_data->cpu_hand[0] = chosen[1];
+    game_data->cut_cards[0] = human_choice_position;
+    game_data->cut_cards[1] = get_random_number(1, 13);
+    game_data->dealer =
+        (chosen[0] & 0xf) < (chosen[1] & 0xf) ? PLAYER_HUMAN : PLAYER_CPU;
+  } else {
+    game_data->dealer = PLAYER_NONE;
+    if (game_data->cut_cards[0] != POSITION_NONE) {
+      /* Cards already cut, move on to crib building. */
+      game_data->state = STATE_CHOOSE_CRIB;
+      char cards[13];
+      get_random_cards(13, cards);
+      for (int i = 0; i < 6; i++) {
+        game_data->human_hand[i] = cards[i];
+        game_data->cpu_hand[i] = cards[i + 6];
+      }
+      game_data->up_card = cards[12];
+    }
+  }
+}
+
+void game_data_handle_state_choose_crib(struct GameData *game_data,
+                                        int human_choice_position) {
+  int ready_to_proceed = (game_data->human_crib_choices[0] != POSITION_NONE &&
+                          game_data->human_crib_choices[1] != POSITION_NONE);
+
+  if (human_choice_position != POSITION_NONE) {
+    int removed = 0;
+    for (int i = 0; i < 2; i++) {
+      if (game_data->human_crib_choices[i] == human_choice_position) {
+        game_data->human_crib_choices[i] = POSITION_NONE;
+        removed = 1;
+      }
+    }
+    if (!removed) {
+      if (game_data->human_crib_choices[0] != POSITION_NONE &&
+          game_data->human_crib_choices[1] != POSITION_NONE) {
+        /* Player has chosen two cards already. Choosing another is illegal.
+         * Do not advance the game state.
+         */
+        return;
+      }
+      if (game_data->human_crib_choices[0] == POSITION_NONE) {
+        game_data->human_crib_choices[0] = human_choice_position;
+      } else {
+        game_data->human_crib_choices[1] = human_choice_position;
+      }
+    }
+  } else {
+    if (!ready_to_proceed) {
+      for (int i = 0; i < 2; i++) {
+        game_data->human_crib_choices[i] = 0;
+      }
+    } else {
+      game_data->state = STATE_PEGGING;
+      for (int i = 0; i < 2; i++) {
+        game_data->crib_hand[i] =
+            game_data->human_hand[game_data->human_crib_choices[i]];
+        game_data->human_hand[game_data->human_crib_choices[i]] = 0;
+        /* TODO: Implement actual CPU AI instead of random crib choice */
+        game_data->crib_hand[i + 2] = game_data->cpu_hand[i];
+      }
+    }
+  }
+}
+
+void (*state_handlers[STATE_END])(struct GameData *, int) = {
+    &game_data_handle_state_choose_dealer, &game_data_handle_state_choose_crib,
+    &game_data_handle_state_not_implemented,
+    &game_data_handle_state_not_implemented,
+    &game_data_handle_state_not_implemented};
+
 /* This advances the game state. GameData is opaque to the rest of the
  * program, so we can be sure that only this function is changing
  * game state
  */
 void game_data_advance_game(struct GameData *game_data,
                             int human_choice_position) {
-  int ready_to_proceed;
-  switch (game_data->state) {
-  case (STATE_CHOOSE_DEALER):
-    if (human_choice_position != POSITION_NONE) {
-      char chosen[2] = {};
-      while ((chosen[0] & 0xf) == (chosen[1] & 0xf)) {
-        /* Let's not entertain tie cuts. Always make the cut have a winner. */
-        get_random_cards(2, chosen);
-      }
-      game_data->human_hand[0] = chosen[0];
-      game_data->cpu_hand[0] = chosen[1];
-      game_data->cut_cards[0] = human_choice_position;
-      game_data->cut_cards[1] = get_random_number(1, 13);
-      game_data->dealer =
-          (chosen[0] & 0xf) < (chosen[1] & 0xf) ? PLAYER_HUMAN : PLAYER_CPU;
-    } else {
-      game_data->dealer = PLAYER_NONE;
-      if (game_data->cut_cards[0] != POSITION_NONE) {
-        /* Cards already cut, move on to crib building. */
-        game_data->state = STATE_CHOOSE_CRIB;
-        char cards[13];
-        get_random_cards(13, cards);
-        for (int i = 0; i < 6; i++) {
-          game_data->human_hand[i] = cards[i];
-          game_data->cpu_hand[i] = cards[i + 6];
-        }
-        game_data->up_card = cards[12];
-      }
-    }
-    break;
-  case (STATE_CHOOSE_CRIB):
-    ready_to_proceed = (game_data->human_crib_choices[0] != POSITION_NONE &&
-                        game_data->human_crib_choices[1] != POSITION_NONE);
-
-    if (human_choice_position != POSITION_NONE) {
-      int removed = 0;
-      for (int i = 0; i < 2; i++) {
-        if (game_data->human_crib_choices[i] == human_choice_position) {
-          game_data->human_crib_choices[i] = POSITION_NONE;
-          removed = 1;
-        }
-      }
-      if (!removed) {
-        if (game_data->human_crib_choices[0] != POSITION_NONE &&
-            game_data->human_crib_choices[1] != POSITION_NONE) {
-          /* Player has chosen two cards already. Choosing another is illegal.
-           * Do not advance the game state.
-           */
-          return;
-        }
-        if (game_data->human_crib_choices[0] == POSITION_NONE) {
-          game_data->human_crib_choices[0] = human_choice_position;
-        } else {
-          game_data->human_crib_choices[1] = human_choice_position;
-        }
-      }
-    } else {
-      if (!ready_to_proceed) {
-        for (int i = 0; i < 2; i++) {
-          game_data->human_crib_choices[i] = 0;
-        }
-      } else {
-        game_data->state = STATE_PEGGING;
-        for (int i = 0; i < 2; i++) {
-          game_data->crib_hand[i] =
-              game_data->human_hand[game_data->human_crib_choices[i]];
-          game_data->human_hand[game_data->human_crib_choices[i]] = 0;
-          /* TODO: Implement actual CPU AI instead of random crib choice */
-          game_data->crib_hand[i + 2] = game_data->cpu_hand[i];
-        }
-      }
-    }
-    break;
-  default:
-    break;
-  }
+  state_handlers[game_data->state](game_data, human_choice_position);
 }
 
 /* Since GameData is opaque, we need to give information about what
