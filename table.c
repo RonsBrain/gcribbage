@@ -89,7 +89,10 @@ static void pressed(GtkGestureClick *gesture, int n_press, double x, double y,
 }
 
 void gcribbage_table_start_new_game(GCribbageTable *table) {
+  game_data_destroy(table->game_data);
   table->game_data = game_data_create();
+  render_buffer(table);
+  gtk_widget_queue_draw(GTK_WIDGET(table));
 }
 
 static void gcribbage_table_init(GCribbageTable *table) {
