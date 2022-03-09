@@ -20,6 +20,7 @@ struct RenderDeckCutScene {
   char human_card;
   char cpu_card;
   int chosen_slots[2];
+  enum PlayerType first_dealer;
 };
 
 struct ChooseCribScene {

@@ -100,6 +100,7 @@ void game_data_advance_game(struct GameData *game_data,
       game_data->dealer =
           (chosen[0] & 0xf) < (chosen[1] & 0xf) ? PLAYER_HUMAN : PLAYER_CPU;
     } else {
+      game_data->dealer = PLAYER_NONE;
       if (game_data->cut_cards[0] != POSITION_NONE) {
         /* Cards already cut, move on to crib building. */
         game_data->state = STATE_CHOOSE_CRIB;
@@ -180,6 +181,7 @@ void game_data_get_render_scene(struct GameData *game_data,
     scene->deck_cut_scene.cpu_card = game_data->cpu_hand[0];
     scene->deck_cut_scene.chosen_slots[0] = game_data->cut_cards[0];
     scene->deck_cut_scene.chosen_slots[1] = game_data->cut_cards[1];
+    scene->deck_cut_scene.first_dealer = game_data->dealer;
     break;
   case STATE_CHOOSE_CRIB:
     scene->type = CHOOSE_CRIB_SCENE;

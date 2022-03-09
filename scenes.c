@@ -50,7 +50,7 @@ void scene_choose_dealer(cairo_t *renderer, struct RenderDeckCutScene *scene,
               layout_options->middle_offset, layout_options->card_width,
               layout_options->card_height);
 
-    if ((scene->human_card & 0xf) < (scene->cpu_card & 0xf)) {
+    if (scene->first_dealer == PLAYER_HUMAN) {
       draw_dialog(renderer, "You deal first.", hitbox_list, win_width / 2,
                   layout_options->middle_offset, layout_options->padding, 0);
     } else {
