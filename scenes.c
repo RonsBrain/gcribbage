@@ -88,7 +88,7 @@ void scene_choose_crib(cairo_t *renderer, struct ChooseCribScene *scene,
               width + i * layout_options->fan_spacing,
               layout_options->bottom_offset - offset,
               layout_options->card_width, layout_options->card_height);
-    if (!scene->ready_to_proceed || (scene->ready_to_proceed && offset)) {
+    if (!scene->ready_to_proceed || (scene->ready_to_proceed && offset != 0)) {
       /* If the human has not selected enough cards, we want them to be
        * able to select any of them.
        *
@@ -108,6 +108,25 @@ void scene_choose_crib(cairo_t *renderer, struct ChooseCribScene *scene,
       middle - (layout_options->card_width + layout_options->fan_spacing) * 2,
       layout_options->middle_offset, layout_options->card_width,
       layout_options->card_height);
+
+  int crib_x, crib_y;
+  char *crib_text;
+
+  crib_x = win_width / 2 +
+           (layout_options->fan_spacing * 5 + layout_options->fan_spacing +
+            layout_options->card_width) /
+               2 +
+           layout_options->padding;
+
+  if (scene->crib_player == PLAYER_HUMAN) {
+    crib_text = "Your crib.";
+    crib_y = layout_options->bottom_offset;
+  } else {
+    crib_text = "CPU's crib.";
+    crib_y = layout_options->top_offset;
+  }
+
+  draw_text(renderer, crib_text, crib_x, crib_y, layout_options->padding);
 
   if (!scene->ready_to_proceed) {
     draw_dialog(renderer, "Choose two cards for the crib.", NULL, win_width / 2,

@@ -42,6 +42,20 @@ void draw_rounded_rectangle(cairo_t *renderer, double x, double y, double width,
   cairo_fill(renderer);
 }
 
+void draw_text(cairo_t *renderer, char *text, int x, int y, int padding) {
+  cairo_text_extents_t text_extents;
+  cairo_text_extents(renderer, text, &text_extents);
+
+  draw_rounded_rectangle(renderer, x, y, (int)text_extents.width + padding * 2,
+                         (int)text_extents.height + padding * 2, 5, 0.13, 0.33,
+                         0.21);
+  x += padding;
+  y += padding + (int)text_extents.height;
+  cairo_set_source_rgb(renderer, 0.8, 0.8, 0.8);
+  cairo_move_to(renderer, x, y);
+  cairo_show_text(renderer, text);
+}
+
 void draw_dialog(cairo_t *renderer, char *text, struct HitboxList *hitbox_list,
                  int midpoint, int y, int padding, int hitbox_data) {
   cairo_surface_t *surface = cairo_get_target(renderer);

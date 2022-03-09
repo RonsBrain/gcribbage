@@ -12,6 +12,8 @@ enum RenderType {
   CHOOSE_CRIB_SCENE,
 };
 
+enum PlayerType { PLAYER_NONE, PLAYER_HUMAN, PLAYER_CPU };
+
 struct BlankScene {};
 
 struct RenderDeckCutScene {
@@ -24,6 +26,7 @@ struct ChooseCribScene {
   int ready_to_proceed;
   char human_cards[6];
   char human_crib_choices[2];
+  enum PlayerType crib_player;
 };
 
 struct RenderScene {
