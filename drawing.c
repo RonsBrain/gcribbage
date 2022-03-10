@@ -106,7 +106,7 @@ void draw_dialog(cairo_t *renderer, char *text, struct HitboxList *hitbox_list,
 
 void draw_scores(cairo_t *renderer, int scores[PLAYER_END], int middle, int y,
                  int padding) {
-  char score_buffer[9]; // Max 3 characters plus null terminator
+  char score_buffer[9]; // Max 8 characters plus null terminator
   cairo_text_extents_t text_extents;
   char *format;
   for (int i = PLAYER_HUMAN; i < PLAYER_END; i++) {
