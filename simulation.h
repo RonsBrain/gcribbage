@@ -10,9 +10,10 @@ enum RenderType {
   BLANK_SCENE,
   DECK_CUT_SCENE,
   CHOOSE_CRIB_SCENE,
+  ANNOUNCE_NIBS_SCENE,
 };
 
-enum PlayerType { PLAYER_NONE, PLAYER_HUMAN, PLAYER_CPU };
+enum PlayerType { PLAYER_NONE, PLAYER_HUMAN, PLAYER_CPU, PLAYER_END };
 
 struct BlankScene {};
 
@@ -30,12 +31,20 @@ struct ChooseCribScene {
   enum PlayerType crib_player;
 };
 
+struct AnnounceNibsScene {
+  char human_cards[4];
+  char up_card;
+  int scores[PLAYER_END];
+  enum PlayerType dealer;
+};
+
 struct RenderScene {
   enum RenderType type;
   union {
     struct BlankScene blank_scene;
     struct RenderDeckCutScene deck_cut_scene;
     struct ChooseCribScene choose_crib_scene;
+    struct AnnounceNibsScene announce_nibs_scene;
   };
 };
 

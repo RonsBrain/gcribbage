@@ -40,6 +40,9 @@ void render_buffer(GCribbageTable *table) {
     scene_choose_crib(table->buffer_context, &scene.choose_crib_scene,
                       &table->hitbox_list, &table->layout_options);
     break;
+  case ANNOUNCE_NIBS_SCENE:
+    scene_announce_nibs(table->buffer_context, &scene.announce_nibs_scene,
+                        &table->hitbox_list, &table->layout_options);
   default:
     break;
   }

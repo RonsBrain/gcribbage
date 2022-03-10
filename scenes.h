@@ -21,3 +21,7 @@ void scene_choose_dealer(cairo_t *renderer, struct RenderDeckCutScene *scene,
 void scene_choose_crib(cairo_t *renderer, struct ChooseCribScene *scene,
                        struct HitboxList *hitbox_list,
                        struct LayoutOptions *layout_options);
+
+void scene_announce_nibs(cairo_t *renderer, struct AnnounceNibsScene *scene,
+                         struct HitboxList *hitbox_list,
+                         struct LayoutOptions *layout_options);

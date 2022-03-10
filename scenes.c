@@ -5,6 +5,7 @@
 #include <cairo.h>
 
 #define CARD_MAX_CUT_POSITIONS 13
+
 void scene_choose_dealer(cairo_t *renderer, struct RenderDeckCutScene *scene,
                          struct HitboxList *hitbox_list,
                          struct LayoutOptions *layout_options) {
@@ -136,4 +137,49 @@ void scene_choose_crib(cairo_t *renderer, struct ChooseCribScene *scene,
                 win_width / 2, layout_options->middle_offset,
                 layout_options->padding, 0);
   }
+}
+
+void scene_announce_nibs(cairo_t *renderer, struct AnnounceNibsScene *scene,
+                         struct HitboxList *hitbox_list,
+                         struct LayoutOptions *layout_options) {
+  int card_width = layout_options->fan_spacing * 3 + layout_options->card_width;
+  cairo_surface_t *surface = cairo_get_target(renderer);
+  int win_width = cairo_image_surface_get_width(surface);
+  int middle = win_width / 2;
+  int width = middle - card_width / 2;
+
+  for (int i = 0; i < 4; i++) {
+    draw_card_back(renderer, layout_options->card_back,
+                   width + i * layout_options->fan_spacing,
+                   layout_options->top_offset, layout_options->card_width,
+                   layout_options->card_height);
+    draw_card(renderer, layout_options->card_images, scene->human_cards[i],
+              width + i * layout_options->fan_spacing,
+              layout_options->bottom_offset, layout_options->card_width,
+              layout_options->card_height);
+  }
+
+  draw_card(renderer, layout_options->card_images, scene->up_card,
+            middle -
+                (layout_options->card_width + layout_options->fan_spacing) * 2,
+            layout_options->middle_offset, layout_options->card_width,
+            layout_options->card_height);
+
+  int crib_x, crib_y;
+  char *text;
+
+  crib_x = win_width / 2 + card_width / 2 + layout_options->padding;
+
+  if (scene->dealer == PLAYER_HUMAN) {
+    crib_y = layout_options->bottom_offset;
+    text = "You get nibs for 2 points!";
+  } else {
+    crib_y = layout_options->top_offset;
+    text = "CPU gets nibs for 2 points.";
+  }
+
+  draw_card_back(renderer, layout_options->card_back, crib_x, crib_y,
+                 layout_options->card_width, layout_options->card_height);
+  draw_dialog(renderer, text, hitbox_list, win_width / 2,
+              layout_options->middle_offset, layout_options->padding, 0);
 }

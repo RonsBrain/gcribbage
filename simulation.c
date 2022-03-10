@@ -6,6 +6,7 @@
 enum GameState {
   STATE_CHOOSE_DEALER,
   STATE_CHOOSE_CRIB,
+  STATE_ANNOUNCE_NIBS,
   STATE_PEGGING,
   STATE_COUNTING,
   STATE_WINNER,
@@ -21,6 +22,7 @@ struct GameData {
   char up_card;
   int human_crib_choices[2];
   enum PlayerType dealer;
+  int scores[PLAYER_END];
 };
 
 /*
@@ -145,21 +147,57 @@ void game_data_handle_state_choose_crib(struct GameData *game_data,
         game_data->human_crib_choices[i] = 0;
       }
     } else {
-      game_data->state = STATE_PEGGING;
       for (int i = 0; i < 2; i++) {
         game_data->crib_hand[i] =
-            game_data->human_hand[game_data->human_crib_choices[i]];
-        game_data->human_hand[game_data->human_crib_choices[i]] = 0;
+            game_data->human_hand[game_data->human_crib_choices[i] - 1];
+        game_data->human_hand[game_data->human_crib_choices[i] - 1] = 0;
         /* TODO: Implement actual CPU AI instead of random crib choice */
         game_data->crib_hand[i + 2] = game_data->cpu_hand[i];
+        game_data->cpu_hand[i] = 0;
+      }
+
+      /* Move all cards in play to the beginning of the hand array */
+      char *card_dest, *card_temp, *card_current;
+      char temp[4];
+      for (enum PlayerType player = PLAYER_HUMAN; player < PLAYER_END;
+           player++) {
+        card_temp = temp;
+        if (player == PLAYER_HUMAN) {
+          card_dest = card_current = game_data->human_hand;
+        } else {
+          card_dest = card_current = game_data->cpu_hand;
+        }
+        for (int i = 0; i < 6; i++) {
+          if (*card_current) {
+            *card_temp = *card_current;
+            card_temp++;
+          }
+          card_current++;
+        }
+        for (int i = 0; i < 4; i++) {
+          *card_dest = temp[i];
+          card_dest++;
+        }
+      }
+      if ((game_data->up_card & 0xf) == 0xb) {
+        /* Dealer turned over a jack for two points. */
+        game_data->scores[game_data->dealer] += 2;
+        game_data->state = STATE_ANNOUNCE_NIBS;
+      } else {
+        game_data->state = STATE_PEGGING;
       }
     }
   }
 }
 
+void game_data_handle_state_announce_nibs(struct GameData *game_data,
+                                          int human_choice_position) {
+  game_data->state = STATE_PEGGING;
+}
+
 void (*state_handlers[STATE_END])(struct GameData *, int) = {
     &game_data_handle_state_choose_dealer, &game_data_handle_state_choose_crib,
-    &game_data_handle_state_not_implemented,
+    &game_data_handle_state_announce_nibs,
     &game_data_handle_state_not_implemented,
     &game_data_handle_state_not_implemented};
 
@@ -206,6 +244,18 @@ void game_data_get_render_scene(struct GameData *game_data,
         (game_data->human_crib_choices[0] != POSITION_NONE &&
          game_data->human_crib_choices[1] != POSITION_NONE);
     scene->choose_crib_scene.crib_player = game_data->dealer;
+    break;
+  case STATE_ANNOUNCE_NIBS:
+    scene->type = ANNOUNCE_NIBS_SCENE;
+    for (int i = 0; i < 4; i++) {
+      scene->announce_nibs_scene.human_cards[i] = game_data->human_hand[i];
+      scene->announce_nibs_scene.up_card = game_data->up_card;
+    }
+    scene->announce_nibs_scene.scores[PLAYER_HUMAN] =
+        game_data->scores[PLAYER_HUMAN];
+    scene->announce_nibs_scene.scores[PLAYER_CPU] =
+        game_data->scores[PLAYER_CPU];
+    scene->announce_nibs_scene.dealer = game_data->dealer;
     break;
   default:
     scene->type = BLANK_SCENE;
