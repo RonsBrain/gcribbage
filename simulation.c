@@ -1,4 +1,5 @@
 #include "simulation.h"
+#include <gtk/gtk.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -72,7 +73,9 @@ struct GameData *game_data_create() {
    * If this ever becomes not the case, then the allocated memory
    * should be initialized before returning it.
    */
-  return (struct GameData *)calloc(sizeof(struct GameData), 1);
+  struct GameData *game_data =
+      (struct GameData *)calloc(sizeof(struct GameData), 1);
+  return game_data;
 }
 
 void game_data_destroy(struct GameData *game_data) {
@@ -244,6 +247,9 @@ void game_data_get_render_scene(struct GameData *game_data,
         (game_data->human_crib_choices[0] != POSITION_NONE &&
          game_data->human_crib_choices[1] != POSITION_NONE);
     scene->choose_crib_scene.crib_player = game_data->dealer;
+    for (enum PlayerType i = PLAYER_HUMAN; i < PLAYER_END; i++) {
+      scene->choose_crib_scene.scores[i] = game_data->scores[i];
+    }
     break;
   case STATE_ANNOUNCE_NIBS:
     scene->type = ANNOUNCE_NIBS_SCENE;

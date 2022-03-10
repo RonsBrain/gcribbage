@@ -29,6 +29,7 @@ struct ChooseCribScene {
   char human_cards[6];
   char human_crib_choices[2];
   enum PlayerType crib_player;
+  int scores[PLAYER_END];
 };
 
 struct AnnounceNibsScene {

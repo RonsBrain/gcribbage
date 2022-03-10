@@ -2,8 +2,8 @@
 <interface>
   <template class="GCribbageApplicationWindow" parent="GtkApplicationWindow">
     <property name="title" translatable="no">GCribbage</property>
-    <property name="default-width">800</property>
-    <property name="default-height">600</property>
+    <property name="default-width">900</property>
+    <property name="default-height">700</property>
     <child type="titlebar">
         <object class="GtkHeaderBar" id="header">
             <child type="start">

@@ -1,4 +1,5 @@
 #include "drawing.h"
+#include <stdio.h>
 
 void draw_clear_buffer(cairo_t *renderer, GdkRGBA *color) {
   gdk_cairo_set_source_rgba(renderer, color);
@@ -100,5 +101,44 @@ void draw_dialog(cairo_t *renderer, char *text, struct HitboxList *hitbox_list,
     cairo_set_source_rgb(renderer, 0.8, 0.8, 0.8);
     cairo_move_to(renderer, x, y);
     cairo_show_text(renderer, "OK");
+  }
+}
+
+void draw_scores(cairo_t *renderer, int scores[PLAYER_END], int middle, int y,
+                 int padding) {
+  char score_buffer[9]; // Max 3 characters plus null terminator
+  cairo_text_extents_t text_extents;
+  char *format;
+  for (int i = PLAYER_HUMAN; i < PLAYER_END; i++) {
+    if (i == PLAYER_HUMAN) {
+      format = "You: %d";
+    } else {
+      format = "CPU: %d";
+    }
+    int result = snprintf(score_buffer, 9, format, scores[i]);
+    if (result > 9 || result < 0) {
+      g_log(G_LOG_DOMAIN, G_LOG_LEVEL_CRITICAL,
+            "snprintf returned %d for score %d", result, scores[i]);
+      abort();
+    }
+    cairo_text_extents(renderer, score_buffer, &text_extents);
+    int this_x = middle - 121 - padding;
+    int this_y;
+    if (i == PLAYER_HUMAN) {
+      this_y = y;
+    } else {
+      this_y = y + (int)text_extents.height + padding * 3;
+    }
+    draw_rounded_rectangle(renderer, this_x, this_y, 242 + padding * 2,
+                           (int)text_extents.height + padding * 2, 5, 0.13,
+                           0.33, 0.21);
+    draw_rounded_rectangle(
+        renderer, this_x, this_y, scores[i] * 2 + padding * 2,
+        (int)text_extents.height + padding * 2, 5, 0.13, 0.13, 0.60);
+    cairo_set_source_rgb(renderer, 0.8, 0.8, 0.8);
+    cairo_move_to(renderer,
+                  this_x + padding + 121 - (int)(text_extents.width / 2.f),
+                  this_y + (int)text_extents.height + padding);
+    cairo_show_text(renderer, score_buffer);
   }
 }

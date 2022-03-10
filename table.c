@@ -59,11 +59,16 @@ void gcribbage_table_handle_resize(GCribbageTable *table, int width, int height,
   cairo_select_font_face(table->buffer_context, "sans-serif",
                          CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
   cairo_set_font_size(table->buffer_context, 18);
+  cairo_text_extents_t text_extents;
+  cairo_text_extents(table->buffer_context, "0", &text_extents);
+  int score_height =
+      (int)text_extents.height * 2 + table->layout_options.padding * 7;
   table->layout_options.top_offset = 25;
   table->layout_options.middle_offset =
-      height / 2 - table->layout_options.card_height / 2;
+      height / 2 - table->layout_options.card_height / 2 - score_height;
   table->layout_options.bottom_offset =
-      height - 25 - table->layout_options.card_height;
+      height - 25 - table->layout_options.card_height - score_height;
+  table->layout_options.score_offset = height - score_height;
   render_buffer(table);
 }
 
@@ -107,14 +112,14 @@ static void gcribbage_table_init(GCribbageTable *table) {
   g_signal_connect(table, "resize", G_CALLBACK(gcribbage_table_handle_resize),
                    NULL);
   GError *error = NULL;
-  table->layout_options.card_images = gdk_pixbuf_new_from_resource(
+  table->layout_options.images.card_images = gdk_pixbuf_new_from_resource(
       "/com/ronsbrain/gcribbage/assets/cards.png", &error);
-  table->layout_options.card_back = gdk_pixbuf_new_from_resource(
+  table->layout_options.images.card_back = gdk_pixbuf_new_from_resource(
       "/com/ronsbrain/gcribbage/assets/back.png", &error);
   table->layout_options.card_width =
-      gdk_pixbuf_get_width(table->layout_options.card_images) / 13;
+      gdk_pixbuf_get_width(table->layout_options.images.card_images) / 13;
   table->layout_options.card_height =
-      gdk_pixbuf_get_height(table->layout_options.card_images) / 4;
+      gdk_pixbuf_get_height(table->layout_options.images.card_images) / 4;
   table->layout_options.fan_spacing = 30;
   table->layout_options.padding = 5;
   gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(table), draw, (gpointer)table,
