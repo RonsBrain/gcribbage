@@ -5,7 +5,7 @@
 #include <gtk/gtk.h>
 
 void draw_clear_buffer(cairo_t *renderer, GdkRGBA *color);
-void draw_card(cairo_t *renderer, GdkPixbuf *card_images, char card, int x,
+void draw_card(cairo_t *renderer, GdkPixbuf *card_images, struct Card card, int x,
                int y, int width, int height);
 void draw_card_back(cairo_t *renderer, GdkPixbuf *back_image, int x, int y,
                     int width, int height);

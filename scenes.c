@@ -41,7 +41,7 @@ void scene_choose_dealer(cairo_t *renderer, struct RenderDeckCutScene *scene,
     }
   }
 
-  if (scene->human_card != CARD_NONE) {
+  if (scene->human_card.rank != CARD_NONE.rank) {
     draw_card(renderer, layout_options->images.card_images, scene->human_card,
               width, layout_options->middle_offset, layout_options->card_width,
               layout_options->card_height);

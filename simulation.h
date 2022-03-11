@@ -1,6 +1,5 @@
 #pragma once
 
-#define CARD_NONE 0
 #define POSITION_NONE 0
 #define MAX_INSTRUCTIONS 32
 
@@ -15,26 +14,34 @@ enum RenderType {
 
 enum PlayerType { PLAYER_NONE, PLAYER_HUMAN, PLAYER_CPU, PLAYER_END };
 
+struct Card{
+  char suit;
+  char rank;
+  char value;
+};
+
+extern struct Card CARD_NONE;
+
 struct BlankScene {};
 
 struct RenderDeckCutScene {
-  char human_card;
-  char cpu_card;
+  struct Card human_card;
+  struct Card cpu_card;
   int chosen_slots[2];
   enum PlayerType first_dealer;
 };
 
 struct ChooseCribScene {
   int ready_to_proceed;
-  char human_cards[6];
-  char human_crib_choices[2];
+  struct Card human_cards[6];
+  int human_crib_choices[2];
   enum PlayerType crib_player;
   int scores[PLAYER_END];
 };
 
 struct AnnounceNibsScene {
-  char human_cards[4];
-  char up_card;
+  struct Card human_cards[4];
+  struct Card up_card;
   int scores[PLAYER_END];
   enum PlayerType dealer;
 };

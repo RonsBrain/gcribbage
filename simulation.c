@@ -15,31 +15,19 @@ enum GameState {
 };
 
 struct GameData {
-  enum GameState state;
-  char human_hand[6];
-  char cpu_hand[6];
-  char crib_hand[4];
-  char cut_cards[2];
-  char up_card;
+  struct Card human_hand[6];
+  struct Card cpu_hand[6];
+  struct Card crib_hand[4];
+  struct Card up_card;
+  int cut_card_positions[2];
   int human_crib_choices[2];
-  enum PlayerType dealer;
   int scores[PLAYER_END];
+  enum GameState state;
+  enum PlayerType dealer;
 };
 
-/*
- * A card is represented by six bytes. The lower four represent the rank,
- * and the upper two represents the suit.
- *
- * To check the suit of a card, you will need to do compare only
- * the upper two bits, but for cribbage, knowing the exact suit is
- * not important for scoring, only that cards are the same suit.
- */
-char possible_cards[52] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                           0x0a, 0x0b, 0x0c, 0x0d, 0x11, 0x12, 0x13, 0x14, 0x15,
-                           0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x21,
-                           0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a,
-                           0x2b, 0x2c, 0x2d, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36,
-                           0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d};
+struct Card possible_cards[52] = {};
+struct Card CARD_NONE = {9, 0, 0};
 
 /* Uses rejection sampling to return a random value between min and max
  * inclusive */
@@ -51,8 +39,8 @@ int get_random_number(int min, int max) {
   return r % max + min;
 }
 
-void get_random_cards(int num_cards, char *cards) {
-  char *current = cards;
+void get_random_cards(int num_cards, struct Card *cards) {
+  struct Card *current = cards;
   char chosen_cards[52] = {};
   int choice;
   for (int i = 0; i < num_cards; i++) {
@@ -69,6 +57,15 @@ struct GameData *game_data_create() {
   /* Not the best place to initialize random number seed. */
   srand(time(0));
 
+  if (possible_cards[0].rank == 0) {
+    for (int suit = 0; suit < 4; suit++) {
+      for (int rank = 1; rank < 15; rank++) {
+        possible_cards[suit * 13 + rank].suit = suit; 
+        possible_cards[suit * 13 + rank].rank = rank; 
+        possible_cards[suit * 13 + rank].value = rank < 10 ? rank : 10; 
+      }
+    }
+  }
   /* 0 is a valid value for all initial values of GameData.
    * If this ever becomes not the case, then the allocated memory
    * should be initialized before returning it.
@@ -90,23 +87,22 @@ void game_data_handle_state_not_implemented(struct GameData *game_data,
 void game_data_handle_state_choose_dealer(struct GameData *game_data,
                                           int human_choice_position) {
   if (human_choice_position != POSITION_NONE) {
-    char chosen[2] = {};
-    while ((chosen[0] & 0xf) == (chosen[1] & 0xf)) {
+    struct Card chosen[2] = {};
+    while ((chosen[0].rank) == (chosen[1].rank)) {
       /* Let's not entertain tie cuts. Always make the cut have a winner. */
       get_random_cards(2, chosen);
     }
     game_data->human_hand[0] = chosen[0];
     game_data->cpu_hand[0] = chosen[1];
-    game_data->cut_cards[0] = human_choice_position;
-    game_data->cut_cards[1] = get_random_number(1, 13);
-    game_data->dealer =
-        (chosen[0] & 0xf) < (chosen[1] & 0xf) ? PLAYER_HUMAN : PLAYER_CPU;
+    game_data->cut_card_positions[0] = human_choice_position;
+    game_data->cut_card_positions[1] = get_random_number(1, 13);
+    game_data->dealer = chosen[0].rank < chosen[1].rank ? PLAYER_HUMAN : PLAYER_CPU;
   } else {
     game_data->dealer = PLAYER_NONE;
-    if (game_data->cut_cards[0] != POSITION_NONE) {
+    if (game_data->cut_card_positions[0] != POSITION_NONE) {
       /* Cards already cut, move on to crib building. */
       game_data->state = STATE_CHOOSE_CRIB;
-      char cards[13];
+      struct Card cards[13];
       get_random_cards(13, cards);
       for (int i = 0; i < 6; i++) {
         game_data->human_hand[i] = cards[i];
@@ -153,15 +149,15 @@ void game_data_handle_state_choose_crib(struct GameData *game_data,
       for (int i = 0; i < 2; i++) {
         game_data->crib_hand[i] =
             game_data->human_hand[game_data->human_crib_choices[i] - 1];
-        game_data->human_hand[game_data->human_crib_choices[i] - 1] = 0;
+        game_data->human_hand[game_data->human_crib_choices[i] - 1] = CARD_NONE;
         /* TODO: Implement actual CPU AI instead of random crib choice */
         game_data->crib_hand[i + 2] = game_data->cpu_hand[i];
-        game_data->cpu_hand[i] = 0;
+        game_data->cpu_hand[i] = CARD_NONE;
       }
 
       /* Move all cards in play to the beginning of the hand array */
-      char *card_dest, *card_temp, *card_current;
-      char temp[4];
+      struct Card *card_dest, *card_temp, *card_current;
+      struct Card temp[4];
       for (enum PlayerType player = PLAYER_HUMAN; player < PLAYER_END;
            player++) {
         card_temp = temp;
@@ -171,7 +167,7 @@ void game_data_handle_state_choose_crib(struct GameData *game_data,
           card_dest = card_current = game_data->cpu_hand;
         }
         for (int i = 0; i < 6; i++) {
-          if (*card_current) {
+          if (card_current->rank) {
             *card_temp = *card_current;
             card_temp++;
           }
@@ -182,7 +178,7 @@ void game_data_handle_state_choose_crib(struct GameData *game_data,
           card_dest++;
         }
       }
-      if ((game_data->up_card & 0xf) == 0xb) {
+      if (game_data->up_card.rank == 11) {
         /* Dealer turned over a jack for two points. */
         game_data->scores[game_data->dealer] += 2;
         game_data->state = STATE_ANNOUNCE_NIBS;
@@ -230,8 +226,8 @@ void game_data_get_render_scene(struct GameData *game_data,
     scene->type = DECK_CUT_SCENE;
     scene->deck_cut_scene.human_card = game_data->human_hand[0];
     scene->deck_cut_scene.cpu_card = game_data->cpu_hand[0];
-    scene->deck_cut_scene.chosen_slots[0] = game_data->cut_cards[0];
-    scene->deck_cut_scene.chosen_slots[1] = game_data->cut_cards[1];
+    scene->deck_cut_scene.chosen_slots[0] = game_data->cut_card_positions[0];
+    scene->deck_cut_scene.chosen_slots[1] = game_data->cut_card_positions[1];
     scene->deck_cut_scene.first_dealer = game_data->dealer;
     break;
   case STATE_CHOOSE_CRIB:
