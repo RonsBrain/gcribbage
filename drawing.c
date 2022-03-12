@@ -8,7 +8,7 @@ void draw_clear_buffer(cairo_t *renderer, GdkRGBA *color) {
 
 void draw_card(cairo_t *renderer, GdkPixbuf *card_images, struct Card card, int x,
                int y, int width, int height) {
-  int src_x = width * card.rank;
+  int src_x = width * (card.rank - 1);
   int src_y = height * card.suit;
   gdk_cairo_set_source_pixbuf(renderer, card_images, x - src_x, y - src_y);
   cairo_rectangle(renderer, x, y, width, height);

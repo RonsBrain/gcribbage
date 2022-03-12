@@ -59,10 +59,10 @@ struct GameData *game_data_create() {
 
   if (possible_cards[0].rank == 0) {
     for (int suit = 0; suit < 4; suit++) {
-      for (int rank = 1; rank < 15; rank++) {
-        possible_cards[suit * 13 + rank].suit = suit; 
-        possible_cards[suit * 13 + rank].rank = rank; 
-        possible_cards[suit * 13 + rank].value = rank < 10 ? rank : 10; 
+      for (int rank = 0; rank < 14; rank++) {
+        possible_cards[suit * 13 + rank].suit = suit;
+        possible_cards[suit * 13 + rank].rank = rank + 1;
+        possible_cards[suit * 13 + rank].value = rank < 9 ? rank + 1 : 10;
       }
     }
   }
