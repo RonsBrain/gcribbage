@@ -6,20 +6,28 @@ void draw_clear_buffer(cairo_t *renderer, GdkRGBA *color) {
   cairo_paint(renderer);
 }
 
-void draw_card(cairo_t *renderer, GdkPixbuf *card_images, struct Card card, int x,
-               int y, int width, int height) {
+void draw_card(cairo_t *renderer, GdkPixbuf *card_images, struct Card card,
+               int x, int y, int width, int height,
+               struct HitboxList *hitbox_list, int hitbox_data) {
   int src_x = width * (card.rank - 1);
   int src_y = height * card.suit;
   gdk_cairo_set_source_pixbuf(renderer, card_images, x - src_x, y - src_y);
   cairo_rectangle(renderer, x, y, width, height);
   cairo_fill(renderer);
+  if (hitbox_list) {
+    hitbox_list_add_hitbox(hitbox_list, x, y, width, height, hitbox_data);
+  }
 }
 
 void draw_card_back(cairo_t *renderer, GdkPixbuf *back_image, int x, int y,
-                    int width, int height) {
+                    int width, int height, struct HitboxList *hitbox_list,
+                    int hitbox_data) {
   gdk_cairo_set_source_pixbuf(renderer, back_image, x, y);
   cairo_rectangle(renderer, x, y, width, height);
   cairo_fill(renderer);
+  if (hitbox_list) {
+    hitbox_list_add_hitbox(hitbox_list, x, y, width, height, hitbox_data);
+  }
 }
 
 #define PI 3.14159265358979323846

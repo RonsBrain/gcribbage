@@ -88,11 +88,10 @@ static void gcribbage_table_advance_game(GCribbageTable *table,
 
 static void pressed(GtkGestureClick *gesture, int n_press, double x, double y,
                     GtkWidget *area) {
-  struct Hitbox *hitbox;
   GCribbageTable *table = GCRIBBAGE_TABLE(area);
-  hitbox = hitbox_list_intersection(&table->hitbox_list, (int)x, (int)y);
-  if (hitbox) {
-    gcribbage_table_advance_game(table, hitbox->data);
+  int data = hitbox_list_hit_data(&table->hitbox_list, (int)x, (int)y);
+  if (data != HITBOX_NO_HIT) {
+    gcribbage_table_advance_game(table, data);
   }
 }
 

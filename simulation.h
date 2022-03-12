@@ -14,7 +14,7 @@ enum RenderType {
 
 enum PlayerType { PLAYER_NONE, PLAYER_HUMAN, PLAYER_CPU, PLAYER_END };
 
-struct Card{
+struct Card {
   char suit;
   char rank;
   char value;

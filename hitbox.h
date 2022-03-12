@@ -1,5 +1,6 @@
 #pragma once
 #define MAX_HITBOXES 13
+#define HITBOX_NO_HIT -1
 
 struct Hitbox {
   int x;
@@ -17,5 +18,4 @@ struct HitboxList {
 void hitbox_list_add_hitbox(struct HitboxList *hitbox_list, int x, int y,
                             int width, int height, int data);
 void hitbox_list_clear(struct HitboxList *hitbox_list);
-struct Hitbox *hitbox_list_intersection(struct HitboxList *hitbox_list, int x,
-                                        int y);
+int hitbox_list_hit_data(struct HitboxList *hitbox_list, int x, int y);

@@ -96,7 +96,8 @@ void game_data_handle_state_choose_dealer(struct GameData *game_data,
     game_data->cpu_hand[0] = chosen[1];
     game_data->cut_card_positions[0] = human_choice_position;
     game_data->cut_card_positions[1] = get_random_number(1, 13);
-    game_data->dealer = chosen[0].rank < chosen[1].rank ? PLAYER_HUMAN : PLAYER_CPU;
+    game_data->dealer =
+        chosen[0].rank < chosen[1].rank ? PLAYER_HUMAN : PLAYER_CPU;
   } else {
     game_data->dealer = PLAYER_NONE;
     if (game_data->cut_card_positions[0] != POSITION_NONE) {
