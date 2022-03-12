@@ -89,7 +89,6 @@ void draw_dialog(cairo_t *renderer, char *text, struct HitboxList *hitbox_list,
   cairo_move_to(renderer, x, y);
   cairo_show_text(renderer, text);
   if (hitbox_list) {
-    /* Extents will have OK text extents at this point */
     x = win_width / 2 - (int)ok_extents.width / 2 - padding;
     y += padding;
     width = (int)ok_extents.width + padding * 2;

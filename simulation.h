@@ -8,6 +8,7 @@ struct GameData;
 enum RenderType {
   BLANK_SCENE,
   DECK_CUT_SCENE,
+  ANNOUNCE_DEALER_SCENE,
   CHOOSE_CRIB_SCENE,
   ANNOUNCE_NIBS_SCENE,
 };
@@ -24,7 +25,9 @@ extern struct Card CARD_NONE;
 
 struct BlankScene {};
 
-struct RenderDeckCutScene {
+struct RenderDeckCutScene {};
+
+struct AnnounceDealerScene {
   struct Card human_card;
   struct Card cpu_card;
   int chosen_slots[2];
@@ -51,6 +54,7 @@ struct RenderScene {
   union {
     struct BlankScene blank_scene;
     struct RenderDeckCutScene deck_cut_scene;
+    struct AnnounceDealerScene announce_dealer_scene;
     struct ChooseCribScene choose_crib_scene;
     struct AnnounceNibsScene announce_nibs_scene;
   };

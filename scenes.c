@@ -14,43 +14,52 @@ void scene_choose_dealer(cairo_t *renderer, struct RenderDeckCutScene *scene,
   cairo_surface_t *surface = cairo_get_target(renderer);
   int win_width = cairo_image_surface_get_width(surface);
   width = win_width / 2 - width / 2;
-
-  /* Don't want the user to select a card if the cut is complete. */
-  struct HitboxList *choose_list = hitbox_list;
-  if (scene->human_card.rank != CARD_NONE.rank) {
-    choose_list = NULL;
-  }
   for (int i = 0; i < CARD_MAX_CUT_POSITIONS; i++) {
-    if (scene->chosen_slots[0] != i + 1 && scene->chosen_slots[1] != i + 1) {
+    draw_card_back(renderer, layout_options->images.card_back,
+                   width + i * layout_options->fan_spacing,
+                   layout_options->top_offset, layout_options->card_width,
+                   layout_options->card_height, hitbox_list, i + 1);
+  }
+  draw_dialog(renderer, "Choose a card. Lowest card deals first.", NULL,
+              win_width / 2, layout_options->middle_offset,
+              layout_options->padding, 0);
+}
+
+void scene_announce_dealer(cairo_t *renderer, struct AnnounceDealerScene *scene,
+                           struct HitboxList *hitbox_list,
+                           struct LayoutOptions *layout_options) {
+  int width = layout_options->fan_spacing * CARD_MAX_CUT_POSITIONS +
+              layout_options->card_width;
+  cairo_surface_t *surface = cairo_get_target(renderer);
+  int win_width = cairo_image_surface_get_width(surface);
+  width = win_width / 2 - width / 2;
+
+  for (int i = 0; i < CARD_MAX_CUT_POSITIONS; i++) {
+    if (scene->chosen_slots[0] != i + 1 && scene->chosen_slots[1] != i) {
       draw_card_back(renderer, layout_options->images.card_back,
                      width + i * layout_options->fan_spacing,
                      layout_options->top_offset, layout_options->card_width,
-                     layout_options->card_height, choose_list, i + 1);
+                     layout_options->card_height, NULL, 0);
     }
   }
 
-  if (scene->human_card.rank != CARD_NONE.rank) {
-    draw_card(renderer, layout_options->images.card_images, scene->human_card,
-              width, layout_options->middle_offset, layout_options->card_width,
-              layout_options->card_height, NULL, 0);
+  draw_card(renderer, layout_options->images.card_images, scene->human_card,
+            width, layout_options->middle_offset, layout_options->card_width,
+            layout_options->card_height, NULL, 0);
 
-    draw_card(renderer, layout_options->images.card_images, scene->cpu_card,
-              width + layout_options->fan_spacing * 12,
-              layout_options->middle_offset, layout_options->card_width,
-              layout_options->card_height, NULL, 0);
+  draw_card(renderer, layout_options->images.card_images, scene->cpu_card,
+            width + layout_options->fan_spacing * 12,
+            layout_options->middle_offset, layout_options->card_width,
+            layout_options->card_height, NULL, 0);
 
-    if (scene->first_dealer == PLAYER_HUMAN) {
-      draw_dialog(renderer, "You deal first.", hitbox_list, win_width / 2,
-                  layout_options->middle_offset, layout_options->padding, 0);
-    } else {
-      draw_dialog(renderer, "CPU deals first.", hitbox_list, win_width / 2,
-                  layout_options->middle_offset, layout_options->padding, 0);
-    }
+  char *text;
+  if (scene->first_dealer == PLAYER_HUMAN) {
+    text = "You deal first.";
   } else {
-    draw_dialog(renderer, "Choose a card. Lowest card deals first.", NULL,
-                win_width / 2, layout_options->middle_offset,
-                layout_options->padding, 0);
+    text = "CPU deals firs.";
   }
+  draw_dialog(renderer, text, hitbox_list, win_width / 2,
+              layout_options->middle_offset, layout_options->padding, 0);
 }
 
 void scene_choose_crib(cairo_t *renderer, struct ChooseCribScene *scene,

@@ -23,6 +23,11 @@ struct LayoutOptions {
 void scene_choose_dealer(cairo_t *renderer, struct RenderDeckCutScene *scene,
                          struct HitboxList *hitbox_list,
                          struct LayoutOptions *layout_options);
+
+void scene_announce_dealer(cairo_t *renderer, struct AnnounceDealerScene *scene,
+                           struct HitboxList *hitbox_list,
+                           struct LayoutOptions *layout_options);
+
 void scene_choose_crib(cairo_t *renderer, struct ChooseCribScene *scene,
                        struct HitboxList *hitbox_list,
                        struct LayoutOptions *layout_options);

@@ -36,6 +36,10 @@ void render_buffer(GCribbageTable *table) {
     scene_choose_dealer(table->buffer_context, &scene.deck_cut_scene,
                         &table->hitbox_list, &table->layout_options);
     break;
+  case ANNOUNCE_DEALER_SCENE:
+    scene_announce_dealer(table->buffer_context, &scene.announce_dealer_scene,
+                          &table->hitbox_list, &table->layout_options);
+    break;
   case CHOOSE_CRIB_SCENE:
     scene_choose_crib(table->buffer_context, &scene.choose_crib_scene,
                       &table->hitbox_list, &table->layout_options);
