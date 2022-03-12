@@ -11,6 +11,10 @@ sources = [
     'hitbox.c',
     'drawing.c',
     'scenes.c',
+    'cards.c',
+    'scoring.c',
     resources
 ]
 executable('gcribbage', sources: sources, dependencies: gtkdeps)
+test_score_pegging = executable('test_score_pegging', 'test/test_scoring.c', 'scoring.c', 'cards.c')
+test('Test pegging scoring', test_score_pegging)

@@ -47,6 +47,11 @@ void render_buffer(GCribbageTable *table) {
   case ANNOUNCE_NIBS_SCENE:
     scene_announce_nibs(table->buffer_context, &scene.announce_nibs_scene,
                         &table->hitbox_list, &table->layout_options);
+    break;
+  case PEGGING_SCENE:
+    scene_pegging(table->buffer_context, &scene.pegging_scene,
+                  &table->hitbox_list, &table->layout_options);
+    break;
   default:
     break;
   }

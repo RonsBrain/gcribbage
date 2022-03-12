@@ -190,3 +190,72 @@ void scene_announce_nibs(cairo_t *renderer, struct AnnounceNibsScene *scene,
   draw_dialog(renderer, text, hitbox_list, win_width / 2,
               layout_options->middle_offset, layout_options->padding, 0);
 }
+
+void scene_pegging(cairo_t *renderer, struct PeggingScene *scene,
+                   struct HitboxList *hitbox_list,
+                   struct LayoutOptions *layout_options) {
+  int card_width = layout_options->fan_spacing * 3 + layout_options->card_width;
+  cairo_surface_t *surface = cairo_get_target(renderer);
+  int win_width = cairo_image_surface_get_width(surface);
+  int middle = win_width / 2;
+  int width = middle - card_width / 2;
+
+  draw_scores(renderer, scene->scores, middle, layout_options->score_offset,
+              layout_options->padding);
+
+  for (int i = 0; i < scene->remaining_cpu_cards; i++) {
+    draw_card_back(renderer, layout_options->images.card_back,
+                   width + i * layout_options->fan_spacing,
+                   layout_options->top_offset, layout_options->card_width,
+                   layout_options->card_height, NULL, 0);
+  }
+  for (int i = 0; i < 4; i++) {
+    if (!IS_SAME_CARD(scene->human_cards[i], CARD_NONE)) {
+      draw_card(renderer, layout_options->images.card_images,
+                scene->human_cards[i], width + i * layout_options->fan_spacing,
+                layout_options->bottom_offset, layout_options->card_width,
+                layout_options->card_height, hitbox_list, i + 1);
+    }
+  }
+
+  draw_card(renderer, layout_options->images.card_images, scene->up_card,
+            middle -
+                (layout_options->card_width + layout_options->fan_spacing) * 2,
+            layout_options->middle_offset, layout_options->card_width,
+            layout_options->card_height, NULL, 0);
+
+  int crib_x, crib_y;
+
+  crib_x =
+      win_width / 2 + card_width / 2 + card_width + layout_options->padding;
+
+  if (scene->dealer == PLAYER_HUMAN) {
+    crib_y = layout_options->bottom_offset;
+  } else {
+    crib_y = layout_options->top_offset;
+  }
+
+  draw_card_back(renderer, layout_options->images.card_back, crib_x, crib_y,
+                 layout_options->card_width, layout_options->card_height, NULL,
+                 0);
+
+  int play_x =
+      win_width / 2 -
+      (layout_options->fan_spacing * 7 + layout_options->card_width) / 2;
+  struct Card *played_card = scene->played_cards;
+  while (!IS_SAME_CARD((*played_card), CARD_NONE)) {
+    draw_card(renderer, layout_options->images.card_images, *played_card,
+              play_x, layout_options->middle_offset, layout_options->card_width,
+              layout_options->card_height, NULL, 0);
+    play_x += layout_options->fan_spacing;
+    played_card++;
+  }
+  play_x += layout_options->card_width + layout_options->padding;
+  char score_text[3];
+  int written = snprintf(score_text, 3, "%d", scene->total_played);
+  if (written > 3) {
+    abort();
+  }
+  draw_text(renderer, score_text, play_x, layout_options->middle_offset,
+            layout_options->padding);
+}

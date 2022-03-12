@@ -1,4 +1,5 @@
 #pragma once
+#include "cards.h"
 
 #define POSITION_NONE 0
 #define MAX_INSTRUCTIONS 32
@@ -11,17 +12,10 @@ enum RenderType {
   ANNOUNCE_DEALER_SCENE,
   CHOOSE_CRIB_SCENE,
   ANNOUNCE_NIBS_SCENE,
+  PEGGING_SCENE,
 };
 
 enum PlayerType { PLAYER_NONE, PLAYER_HUMAN, PLAYER_CPU, PLAYER_END };
-
-struct Card {
-  char suit;
-  char rank;
-  char value;
-};
-
-extern struct Card CARD_NONE;
 
 struct BlankScene {};
 
@@ -49,6 +43,17 @@ struct AnnounceNibsScene {
   enum PlayerType dealer;
 };
 
+struct PeggingScene {
+  struct Card human_cards[4];
+  struct Card up_card;
+  int scores[PLAYER_END];
+  enum PlayerType dealer;
+  struct Card played_cards[8];
+  int total_played;
+  enum PlayerType current_player;
+  int remaining_cpu_cards;
+};
+
 struct RenderScene {
   enum RenderType type;
   union {
@@ -57,6 +62,7 @@ struct RenderScene {
     struct AnnounceDealerScene announce_dealer_scene;
     struct ChooseCribScene choose_crib_scene;
     struct AnnounceNibsScene announce_nibs_scene;
+    struct PeggingScene pegging_scene;
   };
 };
 

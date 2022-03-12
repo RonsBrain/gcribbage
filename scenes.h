@@ -35,3 +35,7 @@ void scene_choose_crib(cairo_t *renderer, struct ChooseCribScene *scene,
 void scene_announce_nibs(cairo_t *renderer, struct AnnounceNibsScene *scene,
                          struct HitboxList *hitbox_list,
                          struct LayoutOptions *layout_options);
+
+void scene_pegging(cairo_t *renderer, struct PeggingScene *scene,
+                   struct HitboxList *hitbox_list,
+                   struct LayoutOptions *layout_options);
