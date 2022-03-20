@@ -22,3 +22,5 @@ enum ScoreType {
 
 void score_pegging(struct Card *cards, enum ScoreType scores[24],
                    int is_last_card);
+void score_counting(struct Card *cards, enum ScoreType scores[24],
+                    int is_pegging);
