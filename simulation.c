@@ -148,9 +148,6 @@ void game_data_transition_to_announce_nibs(struct GameData *game_data) {
   game_data->scores[game_data->dealer] += 2;
 }
 
-void game_data_handle_state_pegging(struct GameData *game_data,
-                                    int human_choice_position);
-
 void game_data_transition_to_pegging(struct GameData *game_data) {
   game_data->current_played_position = game_data->played_cards;
   game_data->current_player = get_next_player(game_data->dealer);
@@ -191,10 +188,6 @@ void game_data_transition_to_pegging(struct GameData *game_data) {
       card_dest++;
     }
   }
-  if (game_data->current_player == PLAYER_CPU) {
-    /* Let the CPU take its turn */
-    game_data_handle_state_pegging(game_data, 0);
-  }
 }
 
 void game_data_transition_to_counting(struct GameData *game_data) {}
@@ -212,11 +205,9 @@ void game_data_transition(struct GameData *game_data, enum GameState state) {
   transition_handlers[state](game_data);
 }
 
-void game_data_handle_state_not_implemented(struct GameData *game_data,
-                                            int position) {}
-
-void game_data_handle_state_choose_dealer(struct GameData *game_data,
-                                          int human_choice_position) {
+enum GameAdvanceResult
+game_data_handle_state_choose_dealer(struct GameData *game_data,
+                                     int human_choice_position) {
   if (human_choice_position != POSITION_NONE) {
     struct Card chosen[2] = {};
     while ((chosen[0].rank) == (chosen[1].rank)) {
@@ -229,15 +220,19 @@ void game_data_handle_state_choose_dealer(struct GameData *game_data,
     game_data->cut_card_positions[1] = get_random_number(1, 13);
     game_data_transition(game_data, STATE_ANNOUNCE_DEALER);
   }
+  return ADVANCE_RESULT_WAIT_FOR_USER;
 }
 
-void game_data_handle_state_announce_dealer(struct GameData *game_data,
-                                            int human_choice_position) {
+enum GameAdvanceResult
+game_data_handle_state_announce_dealer(struct GameData *game_data,
+                                       int human_choice_position) {
   game_data_transition(game_data, STATE_CHOOSE_CRIB);
+  return ADVANCE_RESULT_WAIT_FOR_USER;
 }
 
-void game_data_handle_state_choose_crib(struct GameData *game_data,
-                                        int human_choice_position) {
+enum GameAdvanceResult
+game_data_handle_state_choose_crib(struct GameData *game_data,
+                                   int human_choice_position) {
   int ready_to_proceed = (game_data->human_crib_choices[0] != POSITION_NONE &&
                           game_data->human_crib_choices[1] != POSITION_NONE);
 
@@ -246,8 +241,10 @@ void game_data_handle_state_choose_crib(struct GameData *game_data,
     if (game_data->up_card.rank == 11) {
       /* Dealer turned over a jack for nibs. */
       game_data_transition(game_data, STATE_ANNOUNCE_NIBS);
+      return ADVANCE_RESULT_WAIT_FOR_USER;
     } else {
       game_data_transition(game_data, STATE_PEGGING);
+      return ADVANCE_RESULT_CONTINUE;
     }
   } else {
     int removed = 0;
@@ -263,7 +260,7 @@ void game_data_handle_state_choose_crib(struct GameData *game_data,
         /* Player has chosen two cards already. Choosing another is illegal.
          * Do not advance the game state.
          */
-        return;
+        return ADVANCE_RESULT_WAIT_FOR_USER;
       }
       if (game_data->human_crib_choices[0] == POSITION_NONE) {
         game_data->human_crib_choices[0] = human_choice_position;
@@ -271,28 +268,32 @@ void game_data_handle_state_choose_crib(struct GameData *game_data,
         game_data->human_crib_choices[1] = human_choice_position;
       }
     }
+    return ADVANCE_RESULT_WAIT_FOR_USER;
   }
 }
 
-void game_data_handle_state_announce_nibs(struct GameData *game_data,
-                                          int human_choice_position) {
+enum GameAdvanceResult
+game_data_handle_state_announce_nibs(struct GameData *game_data,
+                                     int human_choice_position) {
   game_data_transition(game_data, STATE_PEGGING);
+  return ADVANCE_RESULT_CONTINUE;
 }
 
-void game_data_handle_state_pegging(struct GameData *game_data,
-                                    int human_choice_position) {
+enum GameAdvanceResult
+game_data_handle_state_pegging(struct GameData *game_data,
+                               int human_choice_position) {
   struct Card played_card;
   if (game_data->current_player == PLAYER_HUMAN) {
     if (human_choice_position == POSITION_NONE ||
         IS_SAME_CARD(game_data->human_hand[human_choice_position - 1],
                      CARD_NONE)) {
       /* Invalid card chosen. Do not advance the game state. */
-      return;
+      return ADVANCE_RESULT_WAIT_FOR_USER;
     }
     played_card = game_data->human_hand[human_choice_position - 1];
     if (game_data->total_played + played_card.value > 31) {
       /* Can't play higher than 31. Do not advance the game state. */
-      return;
+      return ADVANCE_RESULT_WAIT_FOR_USER;
     }
     game_data->human_hand[human_choice_position - 1] = CARD_NONE;
     game_data->remaining_human_cards--;
@@ -362,30 +363,39 @@ void game_data_handle_state_pegging(struct GameData *game_data,
   if (game_data->remaining_cpu_cards == 0 &&
       game_data->remaining_human_cards == 0) {
     game_data_transition(game_data, STATE_COUNTING);
-    return;
+    return ADVANCE_RESULT_WAIT_FOR_USER;
   }
 
   if (game_data->current_player == PLAYER_CPU) {
-    /* Let the CPU take its turn */
-    game_data_handle_state_pegging(game_data, 0);
+    /* Tell the caller to advance the game again so the computer takes its turn
+     */
+    return ADVANCE_RESULT_CONTINUE;
+  } else {
+    return ADVANCE_RESULT_WAIT_FOR_USER;
   }
 };
 
-void (*state_handlers[STATE_END])(struct GameData *, int) = {
+enum GameAdvanceResult
+game_data_handle_state_counting(struct GameData *game_data,
+                                int human_choice_position) {
+  return ADVANCE_RESULT_WAIT_FOR_USER;
+}
+
+enum GameAdvanceResult (*state_handlers[STATE_END])(struct GameData *, int) = {
     &game_data_handle_state_choose_dealer,
     &game_data_handle_state_announce_dealer,
     &game_data_handle_state_choose_crib,
     &game_data_handle_state_announce_nibs,
     &game_data_handle_state_pegging,
-    &game_data_handle_state_not_implemented};
+    &game_data_handle_state_counting};
 
 /* This advances the game state. GameData is opaque to the rest of the
  * program, so we can be sure that only this function is changing
  * game state
  */
-void game_data_advance_game(struct GameData *game_data,
-                            int human_choice_position) {
-  state_handlers[game_data->state](game_data, human_choice_position);
+enum GameAdvanceResult game_data_advance_game(struct GameData *game_data,
+                                              int human_choice_position) {
+  return state_handlers[game_data->state](game_data, human_choice_position);
 }
 
 /* Since GameData is opaque, we need to give information about what

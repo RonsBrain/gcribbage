@@ -17,6 +17,11 @@ enum RenderType {
 
 enum PlayerType { PLAYER_NONE, PLAYER_HUMAN, PLAYER_CPU, PLAYER_END };
 
+enum GameAdvanceResult {
+  ADVANCE_RESULT_CONTINUE,
+  ADVANCE_RESULT_WAIT_FOR_USER
+};
+
 struct BlankScene {};
 
 struct RenderDeckCutScene {};
@@ -68,7 +73,7 @@ struct RenderScene {
 
 struct GameData *game_data_create();
 void game_data_destroy(struct GameData *game_data);
-void game_data_advance_game(struct GameData *game_data,
-                            int human_choice_position);
+enum GameAdvanceResult game_data_advance_game(struct GameData *game_data,
+                                              int human_choice_position);
 void game_data_get_render_scene(struct GameData *game_data,
                                 struct RenderScene *scene);

@@ -90,7 +90,16 @@ static void draw(GtkDrawingArea *table, cairo_t *cr, int width, int height,
 
 static void gcribbage_table_advance_game(GCribbageTable *table,
                                          int player_position_choice) {
-  game_data_advance_game(table->game_data, player_position_choice);
+  enum GameAdvanceResult result;
+  /* Advance the game state until it tells us to stop.
+   *
+   * We will eventually want to begin animations and then advance
+   * the game state again once completed if the game wants us to
+   * continue.
+   */
+  do {
+    result = game_data_advance_game(table->game_data, player_position_choice);
+  } while (result == ADVANCE_RESULT_CONTINUE);
   render_buffer(table);
   gtk_widget_queue_draw(GTK_WIDGET(table));
 }
