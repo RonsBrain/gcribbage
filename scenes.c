@@ -15,14 +15,29 @@ void scene_choose_dealer(cairo_t *renderer, struct RenderDeckCutScene *scene,
   int win_width = cairo_image_surface_get_width(surface);
   width = win_width / 2 - width / 2;
   for (int i = 0; i < CARD_MAX_CUT_POSITIONS; i++) {
-    draw_card_back(renderer, layout_options->images.card_back,
-                   width + i * layout_options->fan_spacing,
-                   layout_options->top_offset, layout_options->card_width,
-                   layout_options->card_height, hitbox_list, i + 1);
+    if (scene->chosen_slot != i + 1) {
+      int position = POSITION_NONE;
+      struct HitboxList *possible_list = NULL;
+      if (IS_SAME_CARD(scene->human_card, CARD_NONE)) {
+        /* Human has not yet chosen a card, so we want them to be able to. */
+        position = i + 1;
+        possible_list = hitbox_list;
+      }
+      draw_card_back(renderer, layout_options->images.card_back,
+                     width + i * layout_options->fan_spacing,
+                     layout_options->top_offset, layout_options->card_width,
+                     layout_options->card_height, possible_list, position);
+    }
   }
-  draw_dialog(renderer, "Choose a card. Lowest card deals first.", NULL,
-              win_width / 2, layout_options->middle_offset,
-              layout_options->padding, 0);
+  if (!IS_SAME_CARD(scene->human_card, CARD_NONE)) {
+    draw_card(renderer, layout_options->images.card_images, scene->human_card,
+              width, layout_options->middle_offset, layout_options->card_width,
+              layout_options->card_height, NULL, 0);
+  } else {
+    draw_dialog(renderer, "Choose a card. Lowest card deals first.", NULL,
+                win_width / 2, layout_options->middle_offset,
+                layout_options->padding, 0);
+  }
 }
 
 void scene_announce_dealer(cairo_t *renderer, struct AnnounceDealerScene *scene,
@@ -56,10 +71,10 @@ void scene_announce_dealer(cairo_t *renderer, struct AnnounceDealerScene *scene,
   if (scene->first_dealer == PLAYER_HUMAN) {
     text = "You deal first.";
   } else {
-    text = "CPU deals firs.";
+    text = "CPU deals first.";
   }
   draw_dialog(renderer, text, hitbox_list, win_width / 2,
-              layout_options->middle_offset, layout_options->padding, 0);
+              layout_options->middle_offset, layout_options->padding, 1);
 }
 
 void scene_choose_crib(cairo_t *renderer, struct ChooseCribScene *scene,

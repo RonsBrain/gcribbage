@@ -24,7 +24,10 @@ enum GameAdvanceResult {
 
 struct BlankScene {};
 
-struct RenderDeckCutScene {};
+struct RenderDeckCutScene {
+  struct Card human_card;
+  int chosen_slot;
+};
 
 struct AnnounceDealerScene {
   struct Card human_card;
