@@ -88,20 +88,40 @@ static void draw(GtkDrawingArea *table, cairo_t *cr, int width, int height,
   cairo_paint(cr);
 }
 
+static gboolean gcribbage_table_pump_game_state_callback(gpointer data);
+
 static void gcribbage_table_advance_game(GCribbageTable *table,
                                          int player_position_choice) {
   enum GameAdvanceResult result;
-  /* Advance the game state until it tells us to stop.
+  result = game_data_advance_game(table->game_data, player_position_choice);
+  /* The basic idea here is that the simulator will keep track of what
+   * is supposed to happen next and tell us if the simulation wants to do
+   * more work or if it needs a human to do something. If it wants to continue,
+   * we need to call game_data_advance_game_state again, but we can delay that
+   * call as long as we want. This sets up a basic animation system.
    *
-   * We will eventually want to begin animations and then advance
-   * the game state again once completed if the game wants us to
-   * continue.
+   * For example:
+   * - Game is at the pegging stage
+   * - User plays a card, forcing the the game state to update
+   * - Simulator responds that the computer needs to take a turn by returning
+   *   ADVANCE_RESULT_CONTINUE
+   * - Delay one second, and then call a callback that will recall this function
+   * - Meanwhile, rerender the scene, showing the user's played card and update
+   *   hand
+   * - Callback comes back here, simulator has played a card
+   * - Simulator returns ADVANCE_RESULT_WAIT_FOR_USER
+   * - Rerender the scene, showing the simulator's play
    */
-  do {
-    result = game_data_advance_game(table->game_data, player_position_choice);
-  } while (result == ADVANCE_RESULT_CONTINUE);
+  if (result == ADVANCE_RESULT_CONTINUE) {
+    g_timeout_add_seconds(1, &gcribbage_table_pump_game_state_callback, table);
+  }
   render_buffer(table);
   gtk_widget_queue_draw(GTK_WIDGET(table));
+}
+
+static gboolean gcribbage_table_pump_game_state_callback(gpointer data) {
+  gcribbage_table_advance_game(GCRIBBAGE_TABLE(data), 0);
+  return G_SOURCE_REMOVE;
 }
 
 static void pressed(GtkGestureClick *gesture, int n_press, double x, double y,
