@@ -6,8 +6,7 @@
 #include <time.h>
 
 enum GameState {
-  STATE_HUMAN_TO_CUT,
-  STATE_CPU_TO_CUT,
+  STATE_CHOOSE_DEALER,
   STATE_ANNOUNCE_DEALER,
   STATE_CHOOSE_CRIB,
   STATE_ANNOUNCE_NIBS,
@@ -104,9 +103,10 @@ enum PlayerType get_next_player(enum PlayerType current) {
   }
 }
 
-void game_data_transition_to_human_to_cut(struct GameData *game_data) {
+void game_data_transition_to_choose_dealer(struct GameData *game_data) {
   game_data->dealer = PLAYER_NONE;
   game_data->up_card = CARD_NONE;
+  game_data->current_player = PLAYER_HUMAN;
 
   for (int i = 0; i < 6; i++) {
     game_data->human_hand[i] = CARD_NONE;
@@ -125,10 +125,6 @@ void game_data_transition_to_human_to_cut(struct GameData *game_data) {
     }
   }
 };
-
-void game_data_transition_to_cpu_to_cut(struct GameData *game_data) {
-  /* noop */
-}
 
 void game_data_transition_to_announce_dealer(struct GameData *game_data) {
   /* noop */
@@ -199,8 +195,7 @@ void game_data_transition_to_pegging(struct GameData *game_data) {
 void game_data_transition_to_counting(struct GameData *game_data) {}
 
 void (*transition_handlers[STATE_END])(struct GameData *) = {
-    &game_data_transition_to_human_to_cut,
-    &game_data_transition_to_cpu_to_cut,
+    &game_data_transition_to_choose_dealer,
     &game_data_transition_to_announce_dealer,
     &game_data_transition_to_choose_crib,
     &game_data_transition_to_announce_nibs,
@@ -213,37 +208,42 @@ void game_data_transition(struct GameData *game_data, enum GameState state) {
 }
 
 enum GameAdvanceResult
-game_data_handle_state_human_cut(struct GameData *game_data,
+game_data_handle_state_choose_dealer(struct GameData *game_data,
                                  int human_choice_position) {
-  if (human_choice_position == POSITION_NONE) {
-    /* We need to know what card the human choose. */
+  switch (game_data->current_player) {
+  case PLAYER_HUMAN:
+    if (human_choice_position == POSITION_NONE) {
+      /* We need to know what card the human choose. */
+      return ADVANCE_RESULT_WAIT_FOR_USER;
+    }
+    /* Human chose a card. Pick a random one and give it to them.
+     * Note that the human's selection doesn't matter.
+     */
+    get_random_cards(1, &game_data->human_hand[0]);
+    game_data->cut_card_positions[0] = human_choice_position;
+    game_data->current_player = PLAYER_CPU;
+    return ADVANCE_RESULT_CONTINUE;
+    break;
+  case PLAYER_CPU:
+    /* Simulator wants to choose a card now. Let's not choose the same rank as the
+     * human. That way we don't have to write tiebreaker logic and scenes.
+     */
+    do {
+      get_random_cards(1, &game_data->cpu_hand[0]);
+    } while (game_data->cpu_hand[0].rank == game_data->human_hand[0].rank);
+    do {
+      game_data->cut_card_positions[1] = get_random_number(1, 13);
+    } while (game_data->cut_card_positions[1] ==
+             game_data->cut_card_positions[0]);
+
+    game_data_transition(game_data, STATE_ANNOUNCE_DEALER);
+    return ADVANCE_RESULT_WAIT_FOR_USER;
+    break;
+  default:
+    g_log(G_LOG_DOMAIN, G_LOG_LEVEL_CRITICAL, "Choose dealer state doesn't know who's turn it is");
+    abort();
     return ADVANCE_RESULT_WAIT_FOR_USER;
   }
-
-  /* Human chose a card. Pick a random one and give it to them.
-   * Note that the human's selection doesn't matter.
-   */
-  get_random_cards(1, &game_data->human_hand[0]);
-  game_data->cut_card_positions[0] = human_choice_position;
-  game_data_transition(game_data, STATE_CPU_TO_CUT);
-  return ADVANCE_RESULT_CONTINUE;
-}
-
-enum GameAdvanceResult
-game_data_handle_state_cpu_cut(struct GameData *game_data, int position) {
-  /* Simulator wants to choose a card now. Let's not choose the same rank as the
-   * human. That way we don't have to write tiebreaker logic and scenes.
-   */
-  do {
-    get_random_cards(1, &game_data->cpu_hand[0]);
-  } while (game_data->cpu_hand[0].rank == game_data->human_hand[0].rank);
-  do {
-    game_data->cut_card_positions[1] = get_random_number(1, 13);
-  } while (game_data->cut_card_positions[1] ==
-           game_data->cut_card_positions[0]);
-
-  game_data_transition(game_data, STATE_ANNOUNCE_DEALER);
-  return ADVANCE_RESULT_WAIT_FOR_USER;
 }
 
 enum GameAdvanceResult
@@ -405,8 +405,7 @@ game_data_handle_state_counting(struct GameData *game_data,
 }
 
 enum GameAdvanceResult (*state_handlers[STATE_END])(struct GameData *, int) = {
-    &game_data_handle_state_human_cut,
-    &game_data_handle_state_cpu_cut,
+    &game_data_handle_state_choose_dealer,
     &game_data_handle_state_announce_dealer,
     &game_data_handle_state_choose_crib,
     &game_data_handle_state_announce_nibs,
@@ -435,8 +434,7 @@ void game_data_get_render_scene(struct GameData *game_data,
     return;
   }
   switch (game_data->state) {
-  case STATE_HUMAN_TO_CUT:
-  case STATE_CPU_TO_CUT:
+  case STATE_CHOOSE_DEALER:
     scene->type = DECK_CUT_SCENE;
     scene->deck_cut_scene.human_card = game_data->human_hand[0];
     scene->deck_cut_scene.chosen_slot = game_data->cut_card_positions[0];
@@ -514,7 +512,7 @@ struct GameData *game_data_create() {
 
   struct GameData *game_data =
       (struct GameData *)calloc(sizeof(struct GameData), 1);
-  game_data_transition(game_data, STATE_HUMAN_TO_CUT);
+  game_data_transition(game_data, STATE_CHOOSE_DEALER);
   return game_data;
 }
 
