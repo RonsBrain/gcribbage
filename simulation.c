@@ -209,7 +209,7 @@ void game_data_transition(struct GameData *game_data, enum GameState state) {
 
 enum GameAdvanceResult
 game_data_handle_state_choose_dealer(struct GameData *game_data,
-                                 int human_choice_position) {
+                                     int human_choice_position) {
   switch (game_data->current_player) {
   case PLAYER_HUMAN:
     if (human_choice_position == POSITION_NONE) {
@@ -225,8 +225,8 @@ game_data_handle_state_choose_dealer(struct GameData *game_data,
     return ADVANCE_RESULT_CONTINUE;
     break;
   case PLAYER_CPU:
-    /* Simulator wants to choose a card now. Let's not choose the same rank as the
-     * human. That way we don't have to write tiebreaker logic and scenes.
+    /* Simulator wants to choose a card now. Let's not choose the same rank as
+     * the human. That way we don't have to write tiebreaker logic and scenes.
      */
     do {
       get_random_cards(1, &game_data->cpu_hand[0]);
@@ -240,7 +240,8 @@ game_data_handle_state_choose_dealer(struct GameData *game_data,
     return ADVANCE_RESULT_WAIT_FOR_USER;
     break;
   default:
-    g_log(G_LOG_DOMAIN, G_LOG_LEVEL_CRITICAL, "Choose dealer state doesn't know who's turn it is");
+    g_log(G_LOG_DOMAIN, G_LOG_LEVEL_CRITICAL,
+          "Choose dealer state doesn't know who's turn it is");
     abort();
     return ADVANCE_RESULT_WAIT_FOR_USER;
   }
