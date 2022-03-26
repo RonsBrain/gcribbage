@@ -30,8 +30,7 @@ struct RenderDeckCutScene {
 };
 
 struct AnnounceDealerScene {
-  struct Card human_card;
-  struct Card cpu_card;
+  struct Card chosen_cards[PLAYER_END];
   int chosen_slots[2];
   enum PlayerType first_dealer;
 };

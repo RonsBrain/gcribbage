@@ -17,8 +17,7 @@ enum GameState {
 };
 
 struct GameData {
-  struct Card human_hand[6];
-  struct Card cpu_hand[6];
+  struct Card player_hands[PLAYER_END][6];
   struct Card crib_hand[4];
   struct Card up_card;
   int cut_card_positions[2];
@@ -29,12 +28,10 @@ struct GameData {
   struct Card played_cards[8];
   struct Card *current_played_position;
   enum PlayerType current_player;
-  int human_says_go;
-  int cpu_says_go;
+  int go_callers[PLAYER_END];
   int total_played;
-  int remaining_cpu_cards;
-  int remaining_human_cards;
   enum PlayerType last_card_player;
+  int remaining_cards[PLAYER_END];
   enum ScoreType score_list[24];
 };
 
@@ -109,8 +106,8 @@ void game_data_transition_to_choose_dealer(struct GameData *game_data) {
   game_data->current_player = PLAYER_HUMAN;
 
   for (int i = 0; i < 6; i++) {
-    game_data->human_hand[i] = CARD_NONE;
-    game_data->cpu_hand[i] = CARD_NONE;
+    game_data->player_hands[PLAYER_HUMAN][i] = CARD_NONE;
+    game_data->player_hands[PLAYER_CPU][i] = CARD_NONE;
     if (i < 4) {
       game_data->crib_hand[i] = CARD_NONE;
     }
@@ -134,13 +131,14 @@ void game_data_transition_to_choose_crib(struct GameData *game_data) {
   struct Card cards[13];
   get_random_cards(13, cards);
   for (int i = 0; i < 6; i++) {
-    game_data->human_hand[i] = cards[i];
-    game_data->cpu_hand[i] = cards[i + 6];
+    game_data->player_hands[PLAYER_HUMAN][i] = cards[i];
+    game_data->player_hands[PLAYER_CPU][i] = cards[i + 6];
   }
   game_data->up_card = cards[12];
-  game_data->dealer =
-      game_data->human_hand[0].rank < game_data->cpu_hand[0].rank ? PLAYER_HUMAN
-                                                                  : PLAYER_CPU;
+  game_data->dealer = game_data->player_hands[PLAYER_HUMAN][0].rank <
+                              game_data->player_hands[PLAYER_CPU][0].rank
+                          ? PLAYER_HUMAN
+                          : PLAYER_CPU;
   for (int i = 0; i < 2; i++) {
     game_data->human_crib_choices[i] = 0;
   }
@@ -154,18 +152,21 @@ void game_data_transition_to_pegging(struct GameData *game_data) {
   game_data->current_played_position = game_data->played_cards;
   game_data->current_player = get_next_player(game_data->dealer);
   game_data->total_played = 0;
-  game_data->remaining_cpu_cards = 4;
-  game_data->remaining_human_cards = 4;
+  game_data->remaining_cards[PLAYER_CPU] = 4;
+  game_data->remaining_cards[PLAYER_HUMAN] = 4;
   game_data->last_card_player = PLAYER_NONE;
   *game_data->played_cards = CARD_NONE;
 
   for (int i = 0; i < 2; i++) {
     game_data->crib_hand[i] =
-        game_data->human_hand[game_data->human_crib_choices[i] - 1];
-    game_data->human_hand[game_data->human_crib_choices[i] - 1] = CARD_NONE;
+        game_data
+            ->player_hands[PLAYER_HUMAN][game_data->human_crib_choices[i] - 1];
+    game_data
+        ->player_hands[PLAYER_HUMAN][game_data->human_crib_choices[i] - 1] =
+        CARD_NONE;
     /* TODO: Implement actual CPU AI instead of random crib choice */
-    game_data->crib_hand[i + 2] = game_data->cpu_hand[i];
-    game_data->cpu_hand[i] = CARD_NONE;
+    game_data->crib_hand[i + 2] = game_data->player_hands[PLAYER_CPU][i];
+    game_data->player_hands[PLAYER_CPU][i] = CARD_NONE;
   }
 
   /* Move all cards in play to the beginning of the hand array */
@@ -174,9 +175,9 @@ void game_data_transition_to_pegging(struct GameData *game_data) {
   for (enum PlayerType player = PLAYER_HUMAN; player < PLAYER_END; player++) {
     card_temp = temp;
     if (player == PLAYER_HUMAN) {
-      card_dest = card_current = game_data->human_hand;
+      card_dest = card_current = game_data->player_hands[PLAYER_HUMAN];
     } else {
-      card_dest = card_current = game_data->cpu_hand;
+      card_dest = card_current = game_data->player_hands[PLAYER_CPU];
     }
     for (int i = 0; i < 6; i++) {
       if (card_current->rank) {
@@ -219,7 +220,7 @@ game_data_handle_state_choose_dealer(struct GameData *game_data,
     /* Human chose a card. Pick a random one and give it to them.
      * Note that the human's selection doesn't matter.
      */
-    get_random_cards(1, &game_data->human_hand[0]);
+    get_random_cards(1, &game_data->player_hands[PLAYER_HUMAN][0]);
     game_data->cut_card_positions[0] = human_choice_position;
     game_data->current_player = PLAYER_CPU;
     return ADVANCE_RESULT_CONTINUE;
@@ -229,8 +230,9 @@ game_data_handle_state_choose_dealer(struct GameData *game_data,
      * the human. That way we don't have to write tiebreaker logic and scenes.
      */
     do {
-      get_random_cards(1, &game_data->cpu_hand[0]);
-    } while (game_data->cpu_hand[0].rank == game_data->human_hand[0].rank);
+      get_random_cards(1, &game_data->player_hands[PLAYER_CPU][0]);
+    } while (game_data->player_hands[PLAYER_CPU][0].rank ==
+             game_data->player_hands[PLAYER_HUMAN][0].rank);
     do {
       game_data->cut_card_positions[1] = get_random_number(1, 13);
     } while (game_data->cut_card_positions[1] ==
@@ -309,31 +311,36 @@ game_data_handle_state_pegging(struct GameData *game_data,
   struct Card played_card;
   if (game_data->current_player == PLAYER_HUMAN) {
     if (human_choice_position == POSITION_NONE ||
-        IS_SAME_CARD(game_data->human_hand[human_choice_position - 1],
-                     CARD_NONE)) {
+        IS_SAME_CARD(
+            game_data->player_hands[PLAYER_HUMAN][human_choice_position - 1],
+            CARD_NONE)) {
       /* Invalid card chosen. Do not advance the game state. */
       return ADVANCE_RESULT_WAIT_FOR_USER;
     }
-    played_card = game_data->human_hand[human_choice_position - 1];
+    played_card =
+        game_data->player_hands[PLAYER_HUMAN][human_choice_position - 1];
     if (game_data->total_played + played_card.value > 31) {
       /* Can't play higher than 31. Do not advance the game state. */
       return ADVANCE_RESULT_WAIT_FOR_USER;
     }
-    game_data->human_hand[human_choice_position - 1] = CARD_NONE;
-    game_data->remaining_human_cards--;
+    game_data->player_hands[PLAYER_HUMAN][human_choice_position - 1] =
+        CARD_NONE;
+    game_data->remaining_cards[PLAYER_HUMAN]--;
   } else {
     played_card = CARD_NONE;
     for (int i = 0; i < 4; i++) {
-      if (!IS_SAME_CARD(game_data->cpu_hand[i], CARD_NONE)) {
-        if (game_data->cpu_hand[i].rank + game_data->total_played <= 31) {
-          played_card = game_data->cpu_hand[i];
-          game_data->cpu_hand[i] = CARD_NONE;
+      if (!IS_SAME_CARD(game_data->player_hands[PLAYER_CPU][i], CARD_NONE)) {
+        if (game_data->player_hands[PLAYER_CPU][i].rank +
+                game_data->total_played <=
+            31) {
+          played_card = game_data->player_hands[PLAYER_CPU][i];
+          game_data->player_hands[PLAYER_CPU][i] = CARD_NONE;
           break;
         }
       }
     }
     if (!IS_SAME_CARD(played_card, CARD_NONE)) {
-      game_data->remaining_cpu_cards--;
+      game_data->remaining_cards[PLAYER_CPU]--;
     }
   }
   if (!IS_SAME_CARD(played_card, CARD_NONE)) {
@@ -347,23 +354,28 @@ game_data_handle_state_pegging(struct GameData *game_data,
   int restart_pegging = game_data->total_played == 31;
 
   /* Assume each player must say go. */
-  game_data->human_says_go = 1;
-  game_data->cpu_says_go = 1;
+  game_data->go_callers[PLAYER_HUMAN] = 1;
+  game_data->go_callers[PLAYER_CPU] = 1;
 
   for (int i = 0; i < 4; i++) {
     /* See if each player has a playable card and remove the go flag if they do
      */
-    if (game_data->human_hand[i].rank > 0 &&
-        game_data->human_hand[i].value + game_data->total_played <= 31) {
-      game_data->human_says_go = 0;
+    if (game_data->player_hands[PLAYER_HUMAN][i].rank > 0 &&
+        game_data->player_hands[PLAYER_HUMAN][i].value +
+                game_data->total_played <=
+            31) {
+      game_data->go_callers[PLAYER_HUMAN] = 0;
     }
-    if (game_data->cpu_hand[i].rank > 0 &&
-        game_data->cpu_hand[i].value + game_data->total_played <= 31) {
-      game_data->cpu_says_go = 0;
+    if (game_data->player_hands[PLAYER_CPU][i].rank > 0 &&
+        game_data->player_hands[PLAYER_CPU][i].value +
+                game_data->total_played <=
+            31) {
+      game_data->go_callers[PLAYER_CPU] = 0;
     }
   }
 
-  if (game_data->human_says_go && game_data->cpu_says_go) {
+  if (game_data->go_callers[PLAYER_HUMAN] &&
+      game_data->go_callers[PLAYER_CPU]) {
     restart_pegging = 1;
   }
 
@@ -384,8 +396,8 @@ game_data_handle_state_pegging(struct GameData *game_data,
   }
 
   game_data->current_player = get_next_player(game_data->current_player);
-  if (game_data->remaining_cpu_cards == 0 &&
-      game_data->remaining_human_cards == 0) {
+  if (game_data->remaining_cards[PLAYER_CPU] == 0 &&
+      game_data->remaining_cards[PLAYER_HUMAN] == 0) {
     game_data_transition(game_data, STATE_COUNTING);
     return ADVANCE_RESULT_WAIT_FOR_USER;
   }
@@ -437,13 +449,15 @@ void game_data_get_render_scene(struct GameData *game_data,
   switch (game_data->state) {
   case STATE_CHOOSE_DEALER:
     scene->type = DECK_CUT_SCENE;
-    scene->deck_cut_scene.human_card = game_data->human_hand[0];
+    scene->deck_cut_scene.human_card = game_data->player_hands[PLAYER_HUMAN][0];
     scene->deck_cut_scene.chosen_slot = game_data->cut_card_positions[0];
     break;
   case STATE_ANNOUNCE_DEALER:
     scene->type = ANNOUNCE_DEALER_SCENE;
-    scene->announce_dealer_scene.human_card = game_data->human_hand[0];
-    scene->announce_dealer_scene.cpu_card = game_data->cpu_hand[0];
+    scene->announce_dealer_scene.chosen_cards[PLAYER_HUMAN] =
+        game_data->player_hands[PLAYER_HUMAN][0];
+    scene->announce_dealer_scene.chosen_cards[PLAYER_CPU] =
+        game_data->player_hands[PLAYER_CPU][0];
     scene->announce_dealer_scene.chosen_slots[0] =
         game_data->cut_card_positions[0];
     scene->announce_dealer_scene.chosen_slots[1] =
@@ -453,7 +467,8 @@ void game_data_get_render_scene(struct GameData *game_data,
   case STATE_CHOOSE_CRIB:
     scene->type = CHOOSE_CRIB_SCENE;
     for (int i = 0; i < 6; i++) {
-      scene->choose_crib_scene.human_cards[i] = game_data->human_hand[i];
+      scene->choose_crib_scene.human_cards[i] =
+          game_data->player_hands[PLAYER_HUMAN][i];
     }
     scene->choose_crib_scene.human_crib_choices[0] =
         game_data->human_crib_choices[0];
@@ -470,7 +485,8 @@ void game_data_get_render_scene(struct GameData *game_data,
   case STATE_ANNOUNCE_NIBS:
     scene->type = ANNOUNCE_NIBS_SCENE;
     for (int i = 0; i < 4; i++) {
-      scene->announce_nibs_scene.human_cards[i] = game_data->human_hand[i];
+      scene->announce_nibs_scene.human_cards[i] =
+          game_data->player_hands[PLAYER_HUMAN][i];
       scene->announce_nibs_scene.up_card = game_data->up_card;
     }
     scene->announce_nibs_scene.scores[PLAYER_HUMAN] =
@@ -482,7 +498,8 @@ void game_data_get_render_scene(struct GameData *game_data,
   case STATE_PEGGING:
     scene->type = PEGGING_SCENE;
     for (int i = 0; i < 4; i++) {
-      scene->pegging_scene.human_cards[i] = game_data->human_hand[i];
+      scene->pegging_scene.human_cards[i] =
+          game_data->player_hands[PLAYER_HUMAN][i];
       scene->pegging_scene.up_card = game_data->up_card;
     }
     scene->pegging_scene.scores[PLAYER_HUMAN] = game_data->scores[PLAYER_HUMAN];
@@ -500,7 +517,8 @@ void game_data_get_render_scene(struct GameData *game_data,
     *scene_cards = CARD_NONE;
     scene->pegging_scene.total_played = game_data->total_played;
     scene->pegging_scene.current_player = game_data->current_player;
-    scene->pegging_scene.remaining_cpu_cards = game_data->remaining_cpu_cards;
+    scene->pegging_scene.remaining_cpu_cards =
+        game_data->remaining_cards[PLAYER_CPU];
     break;
   default:
     scene->type = BLANK_SCENE;

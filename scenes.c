@@ -58,11 +58,13 @@ void scene_announce_dealer(cairo_t *renderer, struct AnnounceDealerScene *scene,
     }
   }
 
-  draw_card(renderer, layout_options->images.card_images, scene->human_card,
-            width, layout_options->middle_offset, layout_options->card_width,
+  draw_card(renderer, layout_options->images.card_images,
+            scene->chosen_cards[PLAYER_HUMAN], width,
+            layout_options->middle_offset, layout_options->card_width,
             layout_options->card_height, NULL, 0);
 
-  draw_card(renderer, layout_options->images.card_images, scene->cpu_card,
+  draw_card(renderer, layout_options->images.card_images,
+            scene->chosen_cards[PLAYER_CPU],
             width + layout_options->fan_spacing * 12,
             layout_options->middle_offset, layout_options->card_width,
             layout_options->card_height, NULL, 0);
