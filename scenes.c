@@ -18,7 +18,7 @@ void scene_choose_dealer(cairo_t *renderer, struct RenderDeckCutScene *scene,
     if (scene->chosen_slot != i + 1) {
       int position = POSITION_NONE;
       struct HitboxList *possible_list = NULL;
-      if (IS_SAME_CARD(scene->human_card, CARD_NONE)) {
+      if (!IS_CARD(scene->human_card)) {
         /* Human has not yet chosen a card, so we want them to be able to. */
         position = i + 1;
         possible_list = hitbox_list;
@@ -29,7 +29,7 @@ void scene_choose_dealer(cairo_t *renderer, struct RenderDeckCutScene *scene,
                      layout_options->card_height, possible_list, position);
     }
   }
-  if (!IS_SAME_CARD(scene->human_card, CARD_NONE)) {
+  if (IS_CARD(scene->human_card)) {
     draw_card(renderer, layout_options->images.card_images, scene->human_card,
               width, layout_options->middle_offset, layout_options->card_width,
               layout_options->card_height, NULL, 0);

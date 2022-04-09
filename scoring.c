@@ -3,7 +3,7 @@
 
 int is_fifteen(struct Card *cards) {
   int total = 0;
-  while (!IS_SAME_CARD((*cards), CARD_NONE)) {
+  while (IS_CARD((*cards))) {
     total += cards->value;
     cards++;
   }
@@ -13,7 +13,7 @@ int is_fifteen(struct Card *cards) {
 
 int is_thirty_one(struct Card *cards) {
   int total = 0;
-  while (!IS_SAME_CARD((*cards), CARD_NONE)) {
+  while (IS_CARD((*cards))) {
     total += cards->value;
     cards++;
   }
@@ -26,7 +26,7 @@ int is_thirty_one(struct Card *cards) {
  */
 int find_pair_length(struct Card *cards) {
   struct Card *current_card = cards;
-  while (!IS_SAME_CARD((*current_card), CARD_NONE)) {
+  while (IS_CARD((*current_card))) {
     current_card++;
   }
   current_card--;
@@ -61,7 +61,7 @@ int find_pair_length(struct Card *cards) {
 int is_run(struct Card *cards, int run_length) {
   int min_rank = cards->rank, max_rank = cards->rank;
   int seen_ranks[13] = {};
-  while (!IS_SAME_CARD((*cards), CARD_NONE)) {
+  while (IS_CARD((*cards))) {
     if (seen_ranks[(int)cards->rank - 1]) {
       /* We've already seen this rank, this can't possibly be
        * a run of the length we're interested in. This prevents
@@ -100,7 +100,7 @@ int find_run_length(struct Card *cards) {
   struct Card *last_card = cards;
   struct Card *current_card;
   int run_length = 0;
-  while (!IS_SAME_CARD((*last_card), CARD_NONE)) {
+  while (IS_CARD((*last_card))) {
     last_card++;
     run_length++;
   }
@@ -218,7 +218,7 @@ enum ScoreType *score_fifteens(struct Card *cards,
 enum ScoreType *score_pairs(struct Card *cards, enum ScoreType *current_score) {
   /* Keep track of how many of which rank we have seen. */
   int seen_ranks[13] = {};
-  while (!IS_SAME_CARD((*cards), CARD_NONE)) {
+  while (IS_CARD((*cards))) {
     seen_ranks[cards->rank - 1] += 1;
     cards++;
   }
@@ -285,7 +285,7 @@ enum ScoreType *score_runs(struct Card *cards, enum ScoreType *current_score) {
 enum ScoreType *score_flush(struct Card *cards, enum ScoreType *current_score,
                             int is_crib) {
   int seen_suits[4] = {};
-  while (!IS_SAME_CARD((*cards), CARD_NONE)) {
+  while (IS_CARD((*cards))) {
     seen_suits[(int)cards->suit]++;
     cards++;
   }

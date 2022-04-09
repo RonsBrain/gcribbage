@@ -103,7 +103,7 @@ void parse_test_case(char *case_to_parse, struct Card *test_cards,
   *current_card = CARD_NONE;
   if (flush_type > 0) {
     current_card = test_cards;
-    while (!IS_SAME_CARD((*current_card), CARD_NONE)) {
+    while (IS_CARD((*current_card))) {
       current_card->suit = 0;
       current_card++;
     }
