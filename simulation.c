@@ -560,6 +560,7 @@ void game_data_get_render_scene(struct GameData *game_data,
     break;
   case STATE_PEGGING:
   case STATE_ANNOUNCE_LAST_CARD:
+  case STATE_ANNOUNCE_THIRTY_ONE:
     scene->type = PEGGING_SCENE;
     for (int i = 0; i < 4; i++) {
       scene->pegging_scene.human_cards[i] =
