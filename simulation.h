@@ -56,9 +56,12 @@ struct PeggingScene {
   int scores[PLAYER_END];
   enum PlayerType dealer;
   struct Card played_cards[8];
-  int total_played;
+  int pegging_count;
   enum PlayerType current_player;
+  int called_go[PLAYER_END];
   int remaining_cpu_cards;
+  int last_card;
+  enum PlayerType last_card_player;
 };
 
 struct RenderScene {

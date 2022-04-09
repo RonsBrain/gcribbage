@@ -226,12 +226,14 @@ void scene_pegging(cairo_t *renderer, struct PeggingScene *scene,
                    layout_options->top_offset, layout_options->card_width,
                    layout_options->card_height, NULL, 0);
   }
+  struct HitboxList *hitbox_to_use =
+      scene->current_player == PLAYER_HUMAN ? hitbox_list : NULL;
   for (int i = 0; i < 4; i++) {
-    if (!IS_SAME_CARD(scene->human_cards[i], CARD_NONE)) {
+    if (IS_CARD(scene->human_cards[i])) {
       draw_card(renderer, layout_options->images.card_images,
                 scene->human_cards[i], width + i * layout_options->fan_spacing,
                 layout_options->bottom_offset, layout_options->card_width,
-                layout_options->card_height, hitbox_list, i + 1);
+                layout_options->card_height, hitbox_to_use, i + 1);
     }
   }
 
@@ -260,7 +262,7 @@ void scene_pegging(cairo_t *renderer, struct PeggingScene *scene,
       win_width / 2 -
       (layout_options->fan_spacing * 7 + layout_options->card_width) / 2;
   struct Card *played_card = scene->played_cards;
-  while (!IS_SAME_CARD((*played_card), CARD_NONE)) {
+  while (IS_CARD((*played_card))) {
     draw_card(renderer, layout_options->images.card_images, *played_card,
               play_x, layout_options->middle_offset, layout_options->card_width,
               layout_options->card_height, NULL, 0);
@@ -269,10 +271,35 @@ void scene_pegging(cairo_t *renderer, struct PeggingScene *scene,
   }
   play_x += layout_options->card_width + layout_options->padding;
   char score_text[3];
-  int written = snprintf(score_text, 3, "%d", scene->total_played);
+  int written = snprintf(score_text, 3, "%d", scene->pegging_count);
   if (written > 3) {
     abort();
   }
   draw_text(renderer, score_text, play_x, layout_options->middle_offset,
             layout_options->padding);
+
+  if (scene->called_go[PLAYER_HUMAN]) {
+    draw_text(renderer, "Go",
+              win_width / 2 - card_width / 2 - card_width -
+                  layout_options->padding,
+              layout_options->bottom_offset, layout_options->padding);
+  }
+
+  if (scene->called_go[PLAYER_CPU]) {
+    draw_text(renderer, "Go",
+              win_width / 2 - card_width / 2 - card_width -
+                  layout_options->padding,
+              layout_options->top_offset, layout_options->padding);
+  }
+
+  if (scene->last_card) {
+    char *last_card_text;
+    if (scene->last_card_player == PLAYER_HUMAN) {
+      last_card_text = "You played last card for 1 point.";
+    } else {
+      last_card_text = "CPU played last card for 1 point.";
+    }
+    draw_dialog(renderer, last_card_text, hitbox_list, win_width / 2,
+                layout_options->middle_offset, layout_options->padding, 0);
+  }
 }
