@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 /// Represents the ranks of cards.
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
 pub enum Rank {
     Ace,
     Two,
@@ -23,20 +23,10 @@ impl Rank {
     pub fn iter() -> impl Iterator<Item = Self> {
         use Rank::*;
         [
-            Ace,
-            Two,
-            Three,
-            Four,
-            Five,
-            Six,
-            Seven,
-            Eight,
-            Nine,
-            Ten,
-            Jack,
-            Queen,
-            King,
-        ].iter().copied()
+            Ace, Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Jack, Queen, King,
+        ]
+        .iter()
+        .copied()
     }
 
     /// Makes a new rank from the given character, or panics if it doesn't
@@ -78,7 +68,6 @@ impl Rank {
             Jack => 11,
             Queen => 12,
             King => 13,
-
         }
     }
 }
@@ -96,7 +85,7 @@ impl PartialOrd for Rank {
 }
 
 /// Represents a suit
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
 pub enum Suit {
     Spades,
     Hearts,
@@ -108,9 +97,9 @@ impl Suit {
     /// Makes an iterator for all the suits.
     pub fn iter() -> impl Iterator<Item = Self> {
         use Suit::*;
-        [ Spades, Hearts, Clubs, Diamonds ].iter().copied()
+        [Spades, Hearts, Clubs, Diamonds].iter().copied()
     }
-    
+
     /// Makes a new suit from the given character, or panics if it doesn't
     /// know how to make this.
     pub fn from(origin: char) -> Suit {
@@ -123,9 +112,31 @@ impl Suit {
             _ => panic!("Can't convert {:?} to a suit", origin),
         }
     }
+
+    pub fn ordinal(&self) -> usize {
+        use Suit::*;
+        match self {
+            Spades => 1,
+            Hearts => 2,
+            Clubs => 3,
+            Diamonds => 4,
+        }
+    }
 }
 
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+impl Ord for Suit {
+    fn cmp(&self, other: &Suit) -> Ordering {
+        self.ordinal().cmp(&other.ordinal())
+    }
+}
+
+impl PartialOrd for Suit {
+    fn partial_cmp(&self, other: &Suit) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
 pub struct Card {
     pub rank: Rank,
     pub suit: Suit,
@@ -133,33 +144,41 @@ pub struct Card {
 
 impl Card {
     pub fn from(origin: &str) -> Self {
-        Card{
+        Card {
             rank: Rank::from(origin.chars().next().unwrap()),
             suit: Suit::from(origin.chars().nth(1).unwrap()),
         }
     }
 }
 
-pub struct Deck {
-    cards: Vec<Card>
+impl Ord for Card {
+    fn cmp(&self, other: &Card) -> Ordering {
+        match self.rank.cmp(&other.rank) {
+            Ordering::Equal => self.suit.cmp(&other.suit),
+            ord => ord,
+        }
+    }
 }
 
-pub trait Dealable {
-    fn shuffle(&mut self);
-    fn deal(&mut self, count: usize) -> Vec<Card>;
+impl PartialOrd for Card {
+    fn partial_cmp(&self, other: &Card) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+pub struct Deck {
+    cards: Vec<Card>,
 }
 
 impl Deck {
     pub fn new() -> Self {
         let cards = Suit::iter()
-            .flat_map(|s| {
-                Rank::iter()
-                    .map(move |r| Card {suit: s, rank: r})
-            })
+            .flat_map(|s| Rank::iter().map(move |r| Card { suit: s, rank: r }))
             .collect();
-        Self {
-            cards,
-        }
+        Self { cards }
+    }
+    pub fn stacked(cards: Vec<Card>) -> Self {
+        Self { cards }
     }
 }
 
@@ -169,28 +188,9 @@ impl Default for Deck {
     }
 }
 
-impl Dealable for Deck {
-    fn shuffle(&mut self) {}
-    fn deal(&mut self, count: usize) -> Vec<Card> {
-        self.cards.drain(0..count).collect()
-    }
-}
-
-pub struct StackedDeck<'a> {
-    cards: &'a mut Vec<Card>
-}
-
-impl<'a> StackedDeck<'a> {
-    pub fn new(cards: &'a mut Vec<Card>) -> Self {
-        Self{
-            cards 
-        }
-    }
-}
-
-impl<'a> Dealable for StackedDeck<'a> {
-    fn shuffle(&mut self) {}
-    fn deal(&mut self, count: usize) -> Vec<Card> {
+impl Deck {
+    pub fn shuffle(&mut self) {}
+    pub fn deal(&mut self, count: usize) -> Vec<Card> {
         self.cards.drain(0..count).collect()
     }
 }
