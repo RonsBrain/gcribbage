@@ -19,6 +19,7 @@ impl PlayerPosition {
 
 pub trait KnowsCribbage {
     fn choose_crib(&mut self, hand: &HashSet<Card>) -> Vec<Card>;
+    fn play(&mut self, hand: &HashSet<Card>) -> Card;
 }
 
 pub struct SimplePlayer {}
@@ -28,5 +29,11 @@ impl KnowsCribbage for SimplePlayer {
         let mut sorted = hand.iter().copied().collect::<Vec<Card>>();
         sorted.sort();
         sorted[0..2].to_vec()
+    }
+
+    fn play(&mut self, hand: &HashSet<Card>) -> Card {
+        let mut sorted = hand.iter().copied().collect::<Vec<Card>>();
+        sorted.sort();
+        sorted[0]
     }
 }
