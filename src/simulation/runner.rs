@@ -18,6 +18,8 @@ enum GameState {
     WaitingForPlay,
     WaitingForAcknowledgement(AcknowledgementType),
     ScoreHand,
+    ScoreDealer,
+    ScoreCrib,
     Done,
 }
 
@@ -32,6 +34,7 @@ pub struct GameRunner<'a, P: KnowsCribbage> {
     scores: HashMap<PlayerPosition, u8>,
     players: HashMap<PlayerPosition, &'a mut P>,
     up_card: Option<Card>,
+    crib: Vec<Card>,
     current_player: PlayerPosition,
     played_cards: Vec<Card>,
     last_card_player: Option<PlayerPosition>,
@@ -106,6 +109,12 @@ pub struct HandInfo {
 }
 
 #[derive(Debug)]
+pub struct CurrentScoreInfo {
+    pub scores: HashMap<PlayerPosition, u8>,
+    pub next_dealer: PlayerPosition,
+}
+
+#[derive(Debug)]
 pub enum PlayResult {
     DealerChosen(CutInfo),
     WaitingForCrib(Deal),
@@ -115,6 +124,9 @@ pub enum PlayResult {
     AnnounceScoring(ScoreInfo),
     AnnounceGo(PlayInfo),
     AnnounceHandScore(HandInfo),
+    AnnounceDealerScore(HandInfo),
+    AnnounceCribScore(HandInfo),
+    NextHand(CurrentScoreInfo),
 }
 
 /// Implements the rules to choose a dealer.
@@ -254,6 +266,7 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
             current_player: PlayerPosition::Second,
             played_cards: Vec::new(),
             last_card_player: None,
+            crib: Vec::new(),
         }
     }
 
@@ -317,11 +330,13 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
                 )
             }
             GameState::ChooseCrib => {
+                self.crib.clear();
                 let choices = choose_crib(&mut self.players, &self.hands);
                 for (position, choice) in choices {
                     let hand = self.hands.get_mut(&position).unwrap();
                     for card in choice {
                         hand.remove(&card);
+                        self.crib.push(card);
                     }
                 }
                 let up_card = self.deck.deal(1);
@@ -488,6 +503,50 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
                     }
                 }
             },
+            GameState::ScoreHand => {
+                let hand = self
+                    .dealt_hands
+                    .get(&self.dealer)
+                    .unwrap()
+                    .iter()
+                    .copied()
+                    .collect::<Vec<Card>>();
+                let scorings = score_hand(hand.as_slice(), self.up_card.unwrap());
+                let hand_info = HandInfo {
+                    scores: self.scores.clone(),
+                    current_player: self.dealer,
+                    scorings: scorings.clone(),
+                };
+                (
+                    GameState::ScoreDealer,
+                    Some(PlayResult::AnnounceDealerScore(hand_info)),
+                )
+            }
+            GameState::ScoreDealer => {
+                let hand = self.crib.to_vec();
+                let scorings = score_hand(hand.as_slice(), self.up_card.unwrap());
+                let hand_info = HandInfo {
+                    scores: self.scores.clone(),
+                    current_player: self.dealer,
+                    scorings: scorings.clone(),
+                };
+                (
+                    GameState::ScoreCrib,
+                    Some(PlayResult::AnnounceCribScore(hand_info)),
+                )
+            }
+            GameState::ScoreCrib => {
+                self.dealer = self.dealer.next();
+                self.current_player = self.dealer.next();
+                let current_info = CurrentScoreInfo {
+                    scores: self.scores.clone(),
+                    next_dealer: self.dealer,
+                };
+                (
+                    GameState::DealCards,
+                    Some(PlayResult::NextHand(current_info)),
+                )
+            }
             _ => (GameState::WaitingForPlay, None),
         };
         self.state = new_state;
@@ -508,6 +567,7 @@ mod tests {
         played_cards: Vec<Card>,
         state: GameState,
         scores: [u8; 2],
+        crib: Vec<Card>,
     }
 
     impl TestFixture {
@@ -519,6 +579,7 @@ mod tests {
                 played_cards: Vec::new(),
                 state: GameState::ChooseDealer,
                 scores: [0, 0],
+                crib: Vec::new(),
             }
         }
 
@@ -555,6 +616,10 @@ mod tests {
             self.played_cards = Vec::from(cards);
         }
 
+        fn set_crib(&mut self, cards: &[Card]) -> () {
+            self.crib = Vec::from(cards);
+        }
+
         fn do_iterations(&mut self, num: usize) -> PlayResult {
             let mut result: Option<PlayResult> = None;
             let mut first = SimplePlayer {};
@@ -588,6 +653,7 @@ mod tests {
                 (PlayerPosition::Second, self.scores[1]),
             ]);
             runner.up_card = Some(Card::from("ad"));
+            runner.crib = self.crib.iter().copied().collect();
             for _ in 0..num {
                 result = runner.do_next_play();
             }
@@ -1099,7 +1165,157 @@ mod tests {
         let result = fixture.do_iterations(2);
 
         match result {
-            PlayResult::AnnounceHandScore(info) => {}
+            PlayResult::AnnounceHandScore(_) => {}
+            _ => panic!("Wrong play result {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_scores_dealer_after_scoring_hand() {
+        let mut fixture = TestFixture::new();
+        let first_hand = [
+            Card::from("as"),
+            Card::from("2s"),
+            Card::from("3s"),
+            Card::from("4s"),
+        ];
+        let second_hand = [
+            Card::from("ac"),
+            Card::from("2c"),
+            Card::from("3c"),
+            Card::from("4c"),
+        ];
+        fixture.set_dealt_hand(PlayerPosition::First, &first_hand);
+        fixture.set_dealt_hand(PlayerPosition::Second, &second_hand);
+        fixture.set_state(GameState::ScoreHand);
+
+        let result = fixture.do_iterations(1);
+
+        match result {
+            PlayResult::AnnounceDealerScore(_) => {}
+            _ => panic!("Wrong play result {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_player_can_win_after_scoring_hand() {
+        let mut fixture = TestFixture::new();
+        let first_hand = [
+            Card::from("as"),
+            Card::from("2s"),
+            Card::from("3s"),
+            Card::from("4s"),
+        ];
+        let second_hand = [
+            Card::from("ac"),
+            Card::from("2c"),
+            Card::from("3c"),
+            Card::from("4c"),
+        ];
+        fixture.set_dealt_hand(PlayerPosition::First, &first_hand);
+        fixture.set_dealt_hand(PlayerPosition::Second, &second_hand);
+        fixture.set_score(PlayerPosition::First, 121);
+        fixture.set_state(GameState::ScoreHand);
+
+        let result = fixture.do_iterations(1);
+
+        match result {
+            PlayResult::GameOver(info) => {
+                assert_eq!(PlayerPosition::First, info.winner);
+            }
+            _ => panic!("Wrong play result {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_scores_crib_after_scoring_dealer() {
+        let mut fixture = TestFixture::new();
+        let crib = [
+            Card::from("as"),
+            Card::from("2s"),
+            Card::from("3s"),
+            Card::from("4s"),
+        ];
+        fixture.set_crib(&crib);
+        fixture.set_state(GameState::ScoreDealer);
+
+        let result = fixture.do_iterations(1);
+
+        match result {
+            PlayResult::AnnounceCribScore(_) => {}
+            _ => panic!("Wrong play result {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_dealer_can_win_after_scoring_dealer() {
+        let mut fixture = TestFixture::new();
+        let first_hand = [
+            Card::from("as"),
+            Card::from("2s"),
+            Card::from("3s"),
+            Card::from("4s"),
+        ];
+        let second_hand = [
+            Card::from("ac"),
+            Card::from("2c"),
+            Card::from("3c"),
+            Card::from("4c"),
+        ];
+        fixture.set_dealt_hand(PlayerPosition::First, &first_hand);
+        fixture.set_dealt_hand(PlayerPosition::Second, &second_hand);
+        fixture.set_score(PlayerPosition::Second, 121);
+        fixture.set_state(GameState::ScoreDealer);
+
+        let result = fixture.do_iterations(1);
+
+        match result {
+            PlayResult::GameOver(info) => {
+                assert_eq!(PlayerPosition::Second, info.winner);
+            }
+            _ => panic!("Wrong play result {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_redeals_after_scoring_crib() {
+        let mut fixture = TestFixture::new();
+        fixture.set_state(GameState::ScoreCrib);
+
+        let result = fixture.do_iterations(1);
+
+        match result {
+            PlayResult::NextHand(_) => {}
+            _ => panic!("Wrong play result {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_dealer_can_win_after_scoring_crib() {
+        let mut fixture = TestFixture::new();
+        let first_hand = [
+            Card::from("as"),
+            Card::from("2s"),
+            Card::from("3s"),
+            Card::from("4s"),
+        ];
+        let second_hand = [
+            Card::from("ac"),
+            Card::from("2c"),
+            Card::from("3c"),
+            Card::from("4c"),
+        ];
+        fixture.set_dealt_hand(PlayerPosition::First, &first_hand);
+        fixture.set_dealt_hand(PlayerPosition::Second, &second_hand);
+        fixture.set_score(PlayerPosition::Second, 121);
+        fixture.set_state(GameState::ScoreCrib);
+
+        let result = fixture.do_iterations(1);
+
+        match result {
+            PlayResult::GameOver(info) => {
+                assert_eq!(PlayerPosition::Second, info.winner);
+            }
             _ => panic!("Wrong play result {:?}", result),
         }
     }
