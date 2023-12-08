@@ -1,0 +1,151 @@
+use crate::simulation::deck::Card;
+use crate::simulation::combinatorics::combinations;
+use std::collections::HashSet;
+
+#[derive(Debug, PartialEq)]
+pub enum Scorings {
+    Fifteen(HashSet<Card>),
+    Pair(HashSet<Card>),
+    RunOfThree(HashSet<Card>),
+    RunOfFour(HashSet<Card>),
+    RunOfFive(HashSet<Card>),
+    RunOfSix(HashSet<Card>),
+    RunOfSeven(HashSet<Card>),
+}
+
+pub fn score_pegging(played: Vec<Card>) -> Vec<Scorings> {
+    let mut scorings = Vec::new();
+
+    /* Check for fifteen */
+    if played.iter().map(|c| c.rank.value()).sum::<u8>() == 15 {
+        scorings.push(Scorings::Fifteen(HashSet::from_iter(
+            played.iter().cloned(),
+        )));
+    };
+
+    /* Find pairs */
+    let mut num_pairs = 0;
+    let mut last_card: Option<Card> = None;
+    for card in played.iter().rev() {
+        if let Some(last_card_inner) = last_card {
+            if card.rank == last_card_inner.rank {
+                num_pairs += 1;
+            } else {
+                break;
+            }
+        }
+        last_card = Some(*card);
+    }
+    let pairs = combinations(played.iter().rev().take(num_pairs + 1), 2);
+    for pair in pairs.iter() {
+        scorings.push(Scorings::Pair(HashSet::from_iter(
+            pair.iter().cloned(),
+        )));
+    }
+
+    /* Find runs */
+    for length in 3..(cards.len()) {
+        let run = cards.iter().take(length).sorted();
+    }
+
+    scorings
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::simulation::deck::Card;
+
+    #[test]
+    fn test_score_pegging() {
+        let tests: Vec<(&str, Vec<Card>, Vec<Scorings>)> = Vec::from([
+            ("No cards played", Vec::new(), Vec::new()),
+            (
+                "Non-scoring card played",
+                Vec::from([Card::from("as")]),
+                Vec::new(),
+            ),
+            (
+                "Fifteen",
+                Vec::from([Card::from("7s"), Card::from("8c")]),
+                Vec::from([Scorings::Fifteen(HashSet::from_iter(
+                    [Card::from("7s"), Card::from("8c")].iter().cloned(),
+                ))]),
+            ),
+            (
+                "Pair",
+                Vec::from([Card::from("as"), Card::from("ac")]),
+                Vec::from([Scorings::Pair(HashSet::from_iter(
+                    [Card::from("ac"), Card::from("as")].iter().cloned(),
+                ))]),
+            ),
+            (
+                "Pair royale",
+                Vec::from([Card::from("as"), Card::from("ac"), Card::from("ad")]),
+                Vec::from([
+                    Scorings::Pair(HashSet::from_iter(
+                        [Card::from("ac"), Card::from("as")].iter().cloned(),
+                    )),
+                    Scorings::Pair(HashSet::from_iter(
+                        [Card::from("ac"), Card::from("ad")].iter().cloned(),
+                    )),
+                    Scorings::Pair(HashSet::from_iter(
+                        [Card::from("as"), Card::from("ad")].iter().cloned(),
+                    )),
+                ]),
+            ),
+            (
+                "Double pair royale",
+                Vec::from([
+                    Card::from("7d"),
+                    Card::from("as"),
+                    Card::from("ac"),
+                    Card::from("ad"),
+                    Card::from("ah"),
+                ]),
+                Vec::from([
+                    Scorings::Pair(HashSet::from_iter(
+                        [Card::from("as"), Card::from("ac")].iter().cloned(),
+                    )),
+                    Scorings::Pair(HashSet::from_iter(
+                        [Card::from("as"), Card::from("ad")].iter().cloned(),
+                    )),
+                    Scorings::Pair(HashSet::from_iter(
+                        [Card::from("as"), Card::from("ah")].iter().cloned(),
+                    )),
+                    Scorings::Pair(HashSet::from_iter(
+                        [Card::from("ac"), Card::from("ad")].iter().cloned(),
+                    )),
+                    Scorings::Pair(HashSet::from_iter(
+                        [Card::from("ac"), Card::from("ah")].iter().cloned(),
+                    )),
+                    Scorings::Pair(HashSet::from_iter(
+                        [Card::from("ad"), Card::from("ah")].iter().cloned(),
+                    )),
+                ]),
+            ),
+            (
+                "Run of three",
+                Vec::from([
+                    Card::from("as"),
+                    Card::from("9s"),
+                    Card::from("ts"),
+                    Card::from("js"),
+                ]),
+                Vec::from([
+                    Scorings::RunOfThree(HashSet::from_iter(
+                        [Card::from("9s"), Card::from("ts"), Card::from("js")].iter().cloned(),
+                    )),
+                ]),
+            )
+        ]);
+
+        for (description, test, expected) in tests {
+            let scorings = score_pegging(test);
+            assert_eq!(expected.len(), scorings.len(), "{}", description);
+            for scoring in scorings {
+                assert!(expected.contains(&scoring));
+            }
+        }
+    }
+}
