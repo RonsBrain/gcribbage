@@ -203,6 +203,10 @@ pub fn score_hand(hand: Vec<Card>, up_card: Card) -> Vec<HandScorings> {
 
 pub fn score_crib(hand: Vec<Card>, up_card: Card) -> Vec<HandScorings> {
     score_hand(hand, up_card)
+        .iter()
+        .filter(|s| !matches!(s, HandScorings::FourCardFlush(_)))
+        .cloned()
+        .collect()
 }
 
 #[cfg(test)]
@@ -919,6 +923,94 @@ mod hand_scoring {
         ]);
         for (description, hand, up_card, expected) in tests {
             assert!(contains(&hand, &up_card, &expected,), "{}", description,);
+        }
+    }
+}
+
+#[cfg(test)]
+mod crib_scoring {
+    use super::*;
+    use crate::simulation::deck::Card;
+
+    fn contains(hand: &Vec<Card>, up_card: &Card, expected: &Vec<HandScorings>) -> bool {
+        for shuffled in combinations(hand.iter(), hand.len()) {
+            let scorings = score_crib(Vec::from_iter(shuffled.iter().cloned()), *up_card);
+            for scoring in expected.iter().cloned() {
+                if !scorings.contains(&scoring) {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
+    #[test]
+    fn four_card_flush_not_allowed() {
+        let tests: Vec<(&str, Vec<Card>, Card, Vec<HandScorings>)> = Vec::from([(
+            "Four card flush",
+            Vec::from([
+                Card::from("As"),
+                Card::from("2s"),
+                Card::from("3s"),
+                Card::from("4s"),
+            ]),
+            Card::from("5c"),
+            Vec::from([HandScorings::FourCardFlush(HashSet::from_iter([
+                Card::from("As"),
+                Card::from("2s"),
+                Card::from("3s"),
+                Card::from("4s"),
+            ]))]),
+        )]);
+        for (description, hand, up_card, expected) in tests {
+            assert!(!contains(&hand, &up_card, &expected,), "{}", description,);
+        }
+    }
+
+    #[test]
+    fn five_card_flush() {
+        let tests: Vec<(&str, Vec<Card>, Card, Vec<HandScorings>, Vec<HandScorings>)> =
+            Vec::from([(
+                "Five card flush",
+                Vec::from([
+                    Card::from("As"),
+                    Card::from("2s"),
+                    Card::from("3s"),
+                    Card::from("4s"),
+                ]),
+                Card::from("5s"),
+                Vec::from([HandScorings::FiveCardFlush(HashSet::from_iter([
+                    Card::from("As"),
+                    Card::from("2s"),
+                    Card::from("3s"),
+                    Card::from("4s"),
+                    Card::from("5s"),
+                ]))]),
+                Vec::from([
+                    HandScorings::FourCardFlush(HashSet::from_iter([
+                        Card::from("As"),
+                        Card::from("2s"),
+                        Card::from("3s"),
+                        Card::from("4s"),
+                    ])),
+                    HandScorings::FourCardFlush(HashSet::from_iter([
+                        Card::from("2s"),
+                        Card::from("3s"),
+                        Card::from("4s"),
+                        Card::from("5s"),
+                    ])),
+                ]),
+            )]);
+        for (description, hand, up_card, expected, unexpecteds) in tests {
+            assert!(contains(&hand, &up_card, &expected,), "{}", description,);
+            for unexpected in unexpecteds {
+                assert!(
+                    !contains(&hand, &up_card, &Vec::from([unexpected.clone()])),
+                    "{} {:?}",
+                    description,
+                    unexpected
+                );
+            }
         }
     }
 }
