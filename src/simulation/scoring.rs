@@ -41,7 +41,7 @@ pub enum HandScorings {
     RunOfFive(HashSet<Card>),
     FourCardFlush(HashSet<Card>),
     FiveCardFlush(HashSet<Card>),
-    Knobs(Card),
+    Nobs(Card),
 }
 
 impl HandScorings {
@@ -55,7 +55,7 @@ impl HandScorings {
             RunOfFive(_) => 5,
             FourCardFlush(_) => 4,
             FiveCardFlush(_) => 5,
-            Knobs(_) => 1,
+            Nobs(_) => 1,
         }
     }
 }
@@ -191,10 +191,10 @@ pub fn score_hand(hand: Vec<Card>, up_card: Card) -> Vec<HandScorings> {
         }
     }
 
-    /* Find knobs */
+    /* Find nobs */
     for jack in set.iter().filter(|c| c.rank == Rank::Jack) {
         if jack.suit == up_card.suit {
-            scorings.push(HandScorings::Knobs(*jack));
+            scorings.push(HandScorings::Nobs(*jack));
             break;
         }
     }
@@ -870,10 +870,10 @@ mod hand_scoring {
     }
 
     #[test]
-    fn knobs() {
+    fn nobs() {
         let tests: Vec<(&str, Vec<Card>, Card, Vec<HandScorings>)> = Vec::from([
             (
-                "Knobs spades",
+                "Nobs spades",
                 Vec::from([
                     Card::from("Js"),
                     Card::from("2c"),
@@ -881,10 +881,10 @@ mod hand_scoring {
                     Card::from("4d"),
                 ]),
                 Card::from("5s"),
-                Vec::from([HandScorings::Knobs(Card::from("Js"))]),
+                Vec::from([HandScorings::Nobs(Card::from("Js"))]),
             ),
             (
-                "Knobs hearts",
+                "Nobs hearts",
                 Vec::from([
                     Card::from("Jh"),
                     Card::from("2c"),
@@ -892,10 +892,10 @@ mod hand_scoring {
                     Card::from("4d"),
                 ]),
                 Card::from("5h"),
-                Vec::from([HandScorings::Knobs(Card::from("Jh"))]),
+                Vec::from([HandScorings::Nobs(Card::from("Jh"))]),
             ),
             (
-                "Knobs clubs",
+                "Nobs clubs",
                 Vec::from([
                     Card::from("Jc"),
                     Card::from("2s"),
@@ -903,10 +903,10 @@ mod hand_scoring {
                     Card::from("4d"),
                 ]),
                 Card::from("5c"),
-                Vec::from([HandScorings::Knobs(Card::from("Jc"))]),
+                Vec::from([HandScorings::Nobs(Card::from("Jc"))]),
             ),
             (
-                "Knobs diamonds",
+                "Nobs diamonds",
                 Vec::from([
                     Card::from("Jd"),
                     Card::from("2c"),
@@ -914,7 +914,7 @@ mod hand_scoring {
                     Card::from("4c"),
                 ]),
                 Card::from("5d"),
-                Vec::from([HandScorings::Knobs(Card::from("Jd"))]),
+                Vec::from([HandScorings::Nobs(Card::from("Jd"))]),
             ),
         ]);
         for (description, hand, up_card, expected) in tests {
