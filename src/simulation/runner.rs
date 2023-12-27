@@ -1,5 +1,8 @@
 use crate::simulation::deck::{Card, Deck, Rank};
 use crate::simulation::player::{KnowsCribbage, PlayerPosition};
+use crate::simulation::scoring::{
+    score_crib, score_hand, score_pegging, HandScorings, PeggingScorings,
+};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
@@ -38,23 +41,6 @@ pub struct GameRunner<'a, P: KnowsCribbage> {
     current_player: PlayerPosition,
     played_cards: Vec<Card>,
     last_card_player: Option<PlayerPosition>,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub enum ScoreType {
-    Fifteen,
-    ThirtyOne,
-    LastCard,
-}
-
-impl ScoreType {
-    pub fn value(&self) -> u8 {
-        use ScoreType::*;
-        match self {
-            Fifteen | ThirtyOne => 2,
-            LastCard => 1,
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -98,14 +84,14 @@ pub struct ScoreInfo {
     pub hands: HashMap<PlayerPosition, HashSet<Card>>,
     pub scores: HashMap<PlayerPosition, u8>,
     pub current_player: PlayerPosition,
-    pub scorings: Vec<ScoreType>,
+    pub scorings: Vec<PeggingScorings>,
 }
 
 #[derive(Debug)]
 pub struct HandInfo {
     pub scores: HashMap<PlayerPosition, u8>,
     pub current_player: PlayerPosition,
-    pub scorings: Vec<ScoreType>,
+    pub scorings: Vec<HandScorings>,
 }
 
 #[derive(Debug)]
@@ -182,46 +168,6 @@ fn choose_crib<P: KnowsCribbage>(
 
 fn play_card<'a, P: KnowsCribbage>(player: &'a mut P, hand: &'a HashSet<Card>) -> Card {
     player.play(hand)
-}
-
-fn score_play(played: &[Card]) -> Vec<ScoreType> {
-    let mut scorings = Vec::new();
-    match played.iter().map(|c| c.rank.value()).sum::<u8>() {
-        15 => scorings.push(ScoreType::Fifteen),
-        31 => scorings.push(ScoreType::ThirtyOne),
-        _ => (),
-    }
-
-    scorings
-}
-
-fn score_hand(hand: &[Card], up_card: Card) -> Vec<ScoreType> {
-    /* First, find all fifteens... */
-    let mut current = Vec::new();
-    let mut scores = Vec::new();
-
-    for i in 1..32 {
-        current.clear();
-        if i & 1 == 1 {
-            current.push(hand[0]);
-        }
-        if i & 2 == 2 {
-            current.push(hand[1]);
-        }
-        if i & 4 == 4 {
-            current.push(hand[2]);
-        }
-        if i & 8 == 8 {
-            current.push(hand[3]);
-        }
-        if i & 16 == 16 {
-            current.push(up_card);
-        }
-        if current.iter().map(|card| card.rank.value()).sum::<u8>() == 15 {
-            scores.push(ScoreType::Fifteen);
-        }
-    }
-    scores
 }
 
 fn has_play(hand: &HashSet<Card>, played: &[Card]) -> bool {
@@ -377,7 +323,7 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
                 hand.remove(&choice);
                 self.last_card_player = Some(self.current_player);
 
-                let scorings = score_play(&self.played_cards);
+                let scorings = score_pegging(self.played_cards.to_vec());
                 match !scorings.is_empty() {
                     true => {
                         let player_score = self.scores.get_mut(&self.current_player).unwrap();
@@ -424,7 +370,7 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
             GameState::WaitingForAcknowledgement(ack_type) => match ack_type {
                 AcknowledgementType::SecondGo => {
                     self.played_cards = Vec::new();
-                    let scorings = [ScoreType::LastCard].to_vec();
+                    let scorings = [PeggingScorings::LastCard].to_vec();
                     let player_score = self.scores.get_mut(&self.current_player).unwrap();
                     for scoring in scorings.iter() {
                         *player_score += scoring.value();
@@ -454,14 +400,17 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
                                 .iter()
                                 .copied()
                                 .collect::<Vec<Card>>();
-                            let scorings = score_hand(hand.as_slice(), self.up_card.unwrap());
+                            let scorings = score_hand(hand, self.up_card.unwrap());
+                            let player_score = self.scores.get_mut(&self.current_player).unwrap();
+                            for scoring in scorings.iter() {
+                                *player_score += scoring.value();
+                            }
                             let hand_info = HandInfo {
                                 scores: self.scores.clone(),
                                 current_player: self.current_player,
                                 scorings: scorings.clone(),
                             };
 
-                            println!("HI");
                             (
                                 GameState::ScoreHand,
                                 Some(PlayResult::AnnounceHandScore(hand_info)),
@@ -511,7 +460,11 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
                     .iter()
                     .copied()
                     .collect::<Vec<Card>>();
-                let scorings = score_hand(hand.as_slice(), self.up_card.unwrap());
+                let scorings = score_hand(hand, self.up_card.unwrap());
+                let player_score = self.scores.get_mut(&self.dealer).unwrap();
+                for scoring in scorings.iter() {
+                    *player_score += scoring.value();
+                }
                 let hand_info = HandInfo {
                     scores: self.scores.clone(),
                     current_player: self.dealer,
@@ -523,8 +476,12 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
                 )
             }
             GameState::ScoreDealer => {
-                let hand = self.crib.to_vec();
-                let scorings = score_hand(hand.as_slice(), self.up_card.unwrap());
+                let crib = self.crib.to_vec();
+                let scorings = score_crib(crib, self.up_card.unwrap());
+                let player_score = self.scores.get_mut(&self.dealer).unwrap();
+                for scoring in scorings.iter() {
+                    *player_score += scoring.value();
+                }
                 let hand_info = HandInfo {
                     scores: self.scores.clone(),
                     current_player: self.dealer,
@@ -900,15 +857,15 @@ mod tests {
         fixture.set_state(GameState::WaitingForPlay);
         let first_hand = [
             Card::from("as"),
-            Card::from("2s"),
             Card::from("3s"),
-            Card::from("4s"),
+            Card::from("6s"),
+            Card::from("9s"),
         ];
         let second_hand = [
-            Card::from("ac"),
-            Card::from("2c"),
-            Card::from("3c"),
-            Card::from("4c"),
+            Card::from("5c"),
+            Card::from("jc"),
+            Card::from("qd"),
+            Card::from("kc"),
         ];
         fixture.set_hand(PlayerPosition::First, &first_hand);
         fixture.set_hand(PlayerPosition::Second, &second_hand);
@@ -918,7 +875,7 @@ mod tests {
 
         match result {
             PlayResult::ReadyForPlay(info) => {
-                assert_eq!(4, info.played_cards.len());
+                assert_eq!(4, info.played_cards.len(), "{:?}", info.played_cards);
                 assert_eq!(
                     HashSet::from_iter(first_hand[2..].into_iter().copied()),
                     *info.hands.get(&PlayerPosition::First).unwrap()
@@ -952,7 +909,7 @@ mod tests {
                 assert_eq!(2, *info.scores.get(&PlayerPosition::First).unwrap());
                 assert_eq!(0, *info.scores.get(&PlayerPosition::Second).unwrap());
                 assert_eq!(1, info.scorings.len());
-                assert_eq!(ScoreType::Fifteen, info.scorings[0]);
+                assert_eq!(PeggingScorings::Fifteen, info.scorings[0]);
             }
             _ => panic!("Wrong play result {:?}", result),
         }
@@ -979,7 +936,7 @@ mod tests {
                 assert_eq!(2, *info.scores.get(&PlayerPosition::First).unwrap());
                 assert_eq!(0, *info.scores.get(&PlayerPosition::Second).unwrap());
                 assert_eq!(1, info.scorings.len());
-                assert_eq!(ScoreType::ThirtyOne, info.scorings[0]);
+                assert_eq!(PeggingScorings::ThirtyOne, info.scorings[0]);
             }
             _ => panic!("Wrong play result {:?}", result),
         }

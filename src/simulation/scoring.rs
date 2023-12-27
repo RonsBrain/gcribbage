@@ -12,6 +12,24 @@ pub enum PeggingScorings {
     RunOfSix,
     RunOfSeven,
     ThirtyOne,
+    LastCard,
+}
+
+impl PeggingScorings {
+    pub fn value(&self) -> u8 {
+        use PeggingScorings::*;
+        match self {
+            Fifteen => 2,
+            Pair(_) => 2,
+            RunOfThree => 3,
+            RunOfFour => 4,
+            RunOfFive => 5,
+            RunOfSix => 6,
+            RunOfSeven => 7,
+            ThirtyOne => 2,
+            LastCard => 1,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -24,6 +42,22 @@ pub enum HandScorings {
     FourCardFlush(HashSet<Card>),
     FiveCardFlush(HashSet<Card>),
     Knobs(Card),
+}
+
+impl HandScorings {
+    pub fn value(&self) -> u8 {
+        use HandScorings::*;
+        match self {
+            Fifteen(_) => 2,
+            Pair(_) => 2,
+            RunOfThree(_) => 3,
+            RunOfFour(_) => 4,
+            RunOfFive(_) => 5,
+            FourCardFlush(_) => 4,
+            FiveCardFlush(_) => 5,
+            Knobs(_) => 1,
+        }
+    }
 }
 
 pub fn score_pegging(played: Vec<Card>) -> Vec<PeggingScorings> {
@@ -165,6 +199,10 @@ pub fn score_hand(hand: Vec<Card>, up_card: Card) -> Vec<HandScorings> {
         }
     }
     scorings
+}
+
+pub fn score_crib(hand: Vec<Card>, up_card: Card) -> Vec<HandScorings> {
+    score_hand(hand, up_card)
 }
 
 #[cfg(test)]
