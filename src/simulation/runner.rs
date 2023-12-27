@@ -195,7 +195,7 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
                 /* Don't bother entertaining a tie. Just redraw. */
                 while cards[0].rank == cards[1].rank {
                     cards = self.deck.deal(2);
-                };
+                }
 
                 /* Dealer is the one who chose the lowest card. Assume
                  * first card is for the first player.
@@ -207,13 +207,16 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
                 let mut up_cards = HashMap::new();
                 up_cards.insert(PlayerPosition::First, cards[0]);
                 up_cards.insert(PlayerPosition::Second, cards[1]);
-                let next_result = CutInfo { up_cards, dealer: self.dealer };
+                let next_result = CutInfo {
+                    up_cards,
+                    dealer: self.dealer,
+                };
                 self.current_player = self.dealer.next();
                 (
                     GameState::DealCards,
                     Some(PlayResult::DealerChosen(next_result)),
                 )
-            },
+            }
             GameState::DealCards => {
                 self.hands.clear();
                 self.dealt_hands.clear();
@@ -224,7 +227,13 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
                 );
                 self.dealt_hands.insert(
                     PlayerPosition::First,
-                    HashSet::from_iter(self.hands.get(&PlayerPosition::First).unwrap().iter().copied()),
+                    HashSet::from_iter(
+                        self.hands
+                            .get(&PlayerPosition::First)
+                            .unwrap()
+                            .iter()
+                            .copied(),
+                    ),
                 );
                 self.hands.insert(
                     PlayerPosition::Second,
@@ -232,7 +241,13 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
                 );
                 self.dealt_hands.insert(
                     PlayerPosition::Second,
-                    HashSet::from_iter(self.hands.get(&PlayerPosition::Second).unwrap().iter().copied()),
+                    HashSet::from_iter(
+                        self.hands
+                            .get(&PlayerPosition::Second)
+                            .unwrap()
+                            .iter()
+                            .copied(),
+                    ),
                 );
                 self.up_card = self.deck.deal(1).first().copied();
                 let next_result = Deal {

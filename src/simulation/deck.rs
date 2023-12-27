@@ -1,3 +1,5 @@
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use std::cmp::Ordering;
 
 /// Represents the ranks of cards.
@@ -184,6 +186,7 @@ impl PartialOrd for Card {
 
 pub struct Deck {
     cards: Vec<Card>,
+    stacking: Option<Vec<Card>>,
 }
 
 impl Deck {
@@ -191,10 +194,14 @@ impl Deck {
         let cards = Suit::iter()
             .flat_map(|s| Rank::iter().map(move |r| Card { suit: s, rank: r }))
             .collect();
-        Self { cards }
+        Self {
+            cards,
+            stacking: None,
+        }
     }
     pub fn stacked(cards: Vec<Card>) -> Self {
-        Self { cards }
+        let stacking = Some(cards.to_vec());
+        Self { cards, stacking }
     }
 }
 
@@ -205,7 +212,22 @@ impl Default for Deck {
 }
 
 impl Deck {
-    pub fn shuffle(&mut self) {}
+    pub fn shuffle(&mut self) {
+        match &self.stacking {
+            Some(stacking) => {
+                self.cards.clear();
+                self.cards.extend(stacking);
+            }
+            None => {
+                self.cards.clear();
+                self.cards.extend(
+                    Suit::iter().flat_map(|s| Rank::iter().map(move |r| Card { suit: s, rank: r })),
+                );
+                self.cards.shuffle(&mut thread_rng());
+            }
+        }
+    }
+
     pub fn deal(&mut self, count: usize) -> Vec<Card> {
         self.cards.drain(0..count).collect()
     }
