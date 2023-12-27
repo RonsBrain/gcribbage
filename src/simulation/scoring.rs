@@ -125,69 +125,79 @@ pub fn score_hand(hand: Vec<Card>, up_card: Card) -> Vec<HandScorings> {
     set.push(up_card);
     let mut scorings = Vec::new();
 
-    /* Find all fifteens */
-    for pick in 2..=5 {
+    let mut skip_runs = false;
+    let mut skip_flush = false;
+    for pick in (2..=5).rev() {
+        let mut run_found = false;
+        let mut flush_found = false;
         for combo in combinations(set.iter(), pick) {
+            /* Find fifteen */
             if combo.iter().map(|c| c.rank.value()).sum::<u8>() == 15 {
-                scorings.push(HandScorings::Fifteen(combo));
+                scorings.push(HandScorings::Fifteen(HashSet::from_iter(
+                    combo.iter().cloned(),
+                )));
+            }
+
+            /* Find pair */
+            if pick == 2 {
+                let mut cards = combo.iter();
+                let left = cards.next().unwrap();
+                let right = cards.next().unwrap();
+                if left.rank == right.rank {
+                    scorings.push(HandScorings::Pair(HashSet::from_iter(
+                        combo.iter().cloned(),
+                    )));
+                }
+            }
+
+            /* Find runs */
+            if pick > 2 && !skip_runs {
+                let mut sorted = combo.iter().cloned().collect::<Vec<Card>>();
+                sorted.sort();
+                let ranks = sorted
+                    .iter()
+                    .map(|c| c.rank.ordinal())
+                    .collect::<Vec<usize>>();
+                if ranks.iter().cloned().eq((ranks[0])..(ranks[0] + pick)) {
+                    let result = HashSet::from_iter(combo.iter().cloned());
+                    scorings.push(match pick {
+                        3 => HandScorings::RunOfThree(result),
+                        4 => HandScorings::RunOfFour(result),
+                        5 => HandScorings::RunOfFive(result),
+                        _ => panic!("Run of wrong size!"),
+                    });
+                    run_found = true;
+                }
+            }
+
+            /* Find flush */
+            if pick > 3 && !skip_flush {
+                for suit in [Suit::Spades, Suit::Hearts, Suit::Clubs, Suit::Diamonds] {
+                    let matching_cards = combo
+                        .iter()
+                        .filter(|c| c.suit == suit)
+                        .cloned()
+                        .collect::<HashSet<Card>>();
+                    match matching_cards.len() {
+                        4 => {
+                            scorings.push(HandScorings::FourCardFlush(matching_cards));
+                            flush_found = true;
+                        }
+                        5 => {
+                            scorings.push(HandScorings::FiveCardFlush(matching_cards));
+                            flush_found = true;
+                        }
+                        _ => (),
+                    }
+                }
             }
         }
-    }
-
-    /* Find all pairs */
-    for combo in combinations(set.iter(), 2) {
-        let mut cards = combo.iter();
-        let left = cards.next().unwrap();
-        let right = cards.next().unwrap();
-        if left.rank == right.rank {
-            scorings.push(HandScorings::Pair(combo));
+        if run_found {
+            skip_runs = true;
         }
-    }
 
-    /* Find all runs */
-    for run_length in (3..=5).rev() {
-        let mut found = false;
-        for combo in combinations(set.iter(), run_length) {
-            let mut sorted = combo.iter().cloned().collect::<Vec<Card>>();
-            sorted.sort();
-            let ranks = sorted
-                .iter()
-                .map(|c| c.rank.ordinal())
-                .collect::<Vec<usize>>();
-            if ranks
-                .iter()
-                .cloned()
-                .eq((ranks[0])..(ranks[0] + run_length))
-            {
-                scorings.push(match run_length {
-                    3 => HandScorings::RunOfThree(combo),
-                    4 => HandScorings::RunOfFour(combo),
-                    5 => HandScorings::RunOfFive(combo),
-                    _ => panic!("Run of wrong size!"),
-                });
-                found = true;
-            }
-        }
-        if found {
-            /* We've found at least one run of the current run length.
-             * We don't want to double count runs, so stop looking for
-             * new runs.
-             */
-            break;
-        }
-    }
-
-    /* Find a flush */
-    for suit in [Suit::Spades, Suit::Hearts, Suit::Clubs, Suit::Diamonds] {
-        let matching_cards = set
-            .iter()
-            .filter(|c| c.suit == suit)
-            .cloned()
-            .collect::<HashSet<Card>>();
-        match matching_cards.len() {
-            4 => scorings.push(HandScorings::FourCardFlush(matching_cards)),
-            5 => scorings.push(HandScorings::FiveCardFlush(matching_cards)),
-            _ => (),
+        if flush_found {
+            skip_flush = true;
         }
     }
 
