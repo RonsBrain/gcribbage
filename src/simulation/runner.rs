@@ -115,61 +115,6 @@ pub enum PlayResult {
     NextHand(CurrentScoreInfo),
 }
 
-/// Implements the rules to choose a dealer.
-///
-/// This shuffles the deck, takes two cards from it, and uses those to
-/// determine the dealer. Lowest card goes first.
-fn choose_dealer(deck: &mut Deck) -> (HashMap<PlayerPosition, Card>, PlayerPosition) {
-    loop {
-        let cards = deck.deal(2);
-        /* If the cards are a tie, choose two new ones. That way we don't
-         * have to write tie-breaking logic for the user interface.
-         */
-        if cards[0].rank == cards[1].rank {
-            continue;
-        }
-        let dealer = match cards[0].rank < cards[1].rank {
-            true => PlayerPosition::First,
-            false => PlayerPosition::Second,
-        };
-        let mut up_cards = HashMap::new();
-        up_cards.insert(PlayerPosition::First, cards[0]);
-        up_cards.insert(PlayerPosition::Second, cards[1]);
-        return (up_cards, dealer);
-    }
-}
-
-fn deal_cards(deck: &mut Deck) -> HashMap<PlayerPosition, HashSet<Card>> {
-    let mut hands: HashMap<PlayerPosition, HashSet<Card>> = HashMap::new();
-    deck.shuffle();
-    hands.insert(
-        PlayerPosition::First,
-        HashSet::from_iter(deck.deal(6).iter().copied()),
-    );
-    hands.insert(
-        PlayerPosition::Second,
-        HashSet::from_iter(deck.deal(6).iter().copied()),
-    );
-    hands
-}
-
-fn choose_crib<P: KnowsCribbage>(
-    players: &mut HashMap<PlayerPosition, &mut P>,
-    hands: &HashMap<PlayerPosition, HashSet<Card>>,
-) -> HashMap<PlayerPosition, Vec<Card>> {
-    let mut choices = HashMap::new();
-    for position in [PlayerPosition::First, PlayerPosition::Second] {
-        let player = players.get_mut(&position).unwrap();
-        let hand = hands.get(&position).unwrap();
-        choices.insert(position, player.choose_crib(hand));
-    }
-    choices
-}
-
-fn play_card<'a, P: KnowsCribbage>(player: &'a mut P, hand: &'a HashSet<Card>) -> Card {
-    player.play(hand)
-}
-
 fn has_play(hand: &HashSet<Card>, played: &[Card]) -> bool {
     let current_total = played.iter().map(|c| c.rank.value()).sum::<u8>();
     for card in hand.iter() {
@@ -243,28 +188,53 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
 
         let (new_state, result) = match self.state {
             GameState::ChooseDealer => {
-                let (up_cards, dealer) = choose_dealer(&mut self.deck);
-                let next_result = CutInfo { up_cards, dealer };
-                self.dealer = dealer;
-                self.current_player = dealer.next();
+                /* Shuffle the deck and choose two cards */
+                self.deck.shuffle();
+                let mut cards = self.deck.deal(2);
+
+                /* Don't bother entertaining a tie. Just redraw. */
+                while cards[0].rank == cards[1].rank {
+                    cards = self.deck.deal(2);
+                };
+
+                /* Dealer is the one who chose the lowest card. Assume
+                 * first card is for the first player.
+                 */
+                self.dealer = match cards[0].rank < cards[1].rank {
+                    true => PlayerPosition::First,
+                    false => PlayerPosition::Second,
+                };
+                let mut up_cards = HashMap::new();
+                up_cards.insert(PlayerPosition::First, cards[0]);
+                up_cards.insert(PlayerPosition::Second, cards[1]);
+                let next_result = CutInfo { up_cards, dealer: self.dealer };
+                self.current_player = self.dealer.next();
                 (
                     GameState::DealCards,
                     Some(PlayResult::DealerChosen(next_result)),
                 )
-            }
+            },
             GameState::DealCards => {
-                let dealt = deal_cards(&mut self.deck);
                 self.hands.clear();
+                self.dealt_hands.clear();
+                self.deck.shuffle();
                 self.hands.insert(
                     PlayerPosition::First,
-                    dealt.get(&PlayerPosition::First).unwrap().clone(),
+                    HashSet::from_iter(self.deck.deal(6).iter().copied()),
+                );
+                self.dealt_hands.insert(
+                    PlayerPosition::First,
+                    HashSet::from_iter(self.hands.get(&PlayerPosition::First).unwrap().iter().copied()),
                 );
                 self.hands.insert(
                     PlayerPosition::Second,
-                    dealt.get(&PlayerPosition::Second).unwrap().clone(),
+                    HashSet::from_iter(self.deck.deal(6).iter().copied()),
+                );
+                self.dealt_hands.insert(
+                    PlayerPosition::Second,
+                    HashSet::from_iter(self.hands.get(&PlayerPosition::Second).unwrap().iter().copied()),
                 );
                 self.up_card = self.deck.deal(1).first().copied();
-                self.dealt_hands = dealt;
                 let next_result = Deal {
                     dealer: self.dealer,
                     scores: self.scores.clone(),
@@ -277,7 +247,12 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
             }
             GameState::ChooseCrib => {
                 self.crib.clear();
-                let choices = choose_crib(&mut self.players, &self.hands);
+                let mut choices = HashMap::new();
+                for position in [PlayerPosition::First, PlayerPosition::Second] {
+                    let player = self.players.get_mut(&position).unwrap();
+                    let hand = self.hands.get(&position).unwrap();
+                    choices.insert(position, player.choose_crib(hand));
+                }
                 for (position, choice) in choices {
                     let hand = self.hands.get_mut(&position).unwrap();
                     for card in choice {
@@ -318,7 +293,7 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
             GameState::WaitingForPlay => {
                 let current_player = self.players.get_mut(&self.current_player).unwrap();
                 let hand = self.hands.get_mut(&self.current_player).unwrap();
-                let choice = play_card(*current_player, hand);
+                let choice = current_player.play(hand);
                 self.played_cards.push(choice);
                 hand.remove(&choice);
                 self.last_card_player = Some(self.current_player);
