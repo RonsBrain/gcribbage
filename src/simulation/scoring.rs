@@ -120,8 +120,9 @@ pub fn score_pegging(played: Vec<Card>) -> Vec<PeggingScorings> {
     scorings
 }
 
-pub fn score_hand(hand: Vec<Card>, up_card: Card) -> Vec<HandScorings> {
-    let mut set: Vec<Card> = hand.to_vec();
+pub fn score_hand(hand: &HashSet<Card>, up_card: Card) -> Vec<HandScorings> {
+    let mut set: Vec<Card> = hand.iter().copied().collect();
+
     set.push(up_card);
     let mut scorings = Vec::new();
 
@@ -211,7 +212,7 @@ pub fn score_hand(hand: Vec<Card>, up_card: Card) -> Vec<HandScorings> {
     scorings
 }
 
-pub fn score_crib(hand: Vec<Card>, up_card: Card) -> Vec<HandScorings> {
+pub fn score_crib(hand: &HashSet<Card>, up_card: Card) -> Vec<HandScorings> {
     score_hand(hand, up_card)
         .iter()
         .filter(|s| !matches!(s, HandScorings::FourCardFlush(_)))
@@ -224,13 +225,11 @@ mod hand_scoring {
     use super::*;
     use crate::simulation::deck::Card;
 
-    fn contains(hand: &Vec<Card>, up_card: &Card, expected: &Vec<HandScorings>) -> bool {
-        for shuffled in combinations(hand.iter(), hand.len()) {
-            let scorings = score_hand(Vec::from_iter(shuffled.iter().cloned()), *up_card);
-            for scoring in expected.iter().cloned() {
-                if !scorings.contains(&scoring) {
-                    return false;
-                }
+    fn contains(hand: &HashSet<Card>, up_card: &Card, expected: &Vec<HandScorings>) -> bool {
+        let scorings = score_hand(hand, *up_card);
+        for scoring in expected.iter().cloned() {
+            if !scorings.contains(&scoring) {
+                return false;
             }
         }
         true
@@ -238,23 +237,23 @@ mod hand_scoring {
 
     #[test]
     fn test_non_scoring_hand() {
-        let hand = Vec::from([
+        let hand = HashSet::from_iter(vec![
             Card::from("Ts"),
             Card::from("Qh"),
             Card::from("7h"),
             Card::from("Ad"),
         ]);
         let up_card = Card::from("Ks");
-        let result = score_hand(hand, up_card);
+        let result = score_hand(&hand, up_card);
         assert_eq!(0, result.len());
     }
 
     #[test]
     fn test_score_two_card_fifteens() {
-        let tests: Vec<(&str, Vec<Card>, Card, Vec<HandScorings>)> = Vec::from([
+        let tests: Vec<(&str, HashSet<Card>, Card, Vec<HandScorings>)> = Vec::from([
             (
                 "7-8 Fifteen",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("7s"),
                     Card::from("8h"),
                     Card::from("Th"),
@@ -267,7 +266,7 @@ mod hand_scoring {
             ),
             (
                 "9-6 Fifteen",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("9s"),
                     Card::from("6h"),
                     Card::from("Th"),
@@ -280,7 +279,7 @@ mod hand_scoring {
             ),
             (
                 "10-5 Fifteen",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("Ts"),
                     Card::from("5h"),
                     Card::from("9h"),
@@ -293,7 +292,7 @@ mod hand_scoring {
             ),
             (
                 "J-5 Fifteen",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("Js"),
                     Card::from("5h"),
                     Card::from("9h"),
@@ -306,7 +305,7 @@ mod hand_scoring {
             ),
             (
                 "Q-5 Fifteen",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("Qs"),
                     Card::from("5h"),
                     Card::from("9h"),
@@ -319,7 +318,7 @@ mod hand_scoring {
             ),
             (
                 "K-5 Fifteen",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("Ks"),
                     Card::from("5h"),
                     Card::from("9h"),
@@ -332,7 +331,7 @@ mod hand_scoring {
             ),
             (
                 "Multiple Fifteens",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("Ks"),
                     Card::from("5h"),
                     Card::from("Qh"),
@@ -363,10 +362,10 @@ mod hand_scoring {
 
     #[test]
     fn test_score_three_card_fifteens() {
-        let tests: Vec<(&str, Vec<Card>, Card, Vec<HandScorings>)> = Vec::from([
+        let tests: Vec<(&str, HashSet<Card>, Card, Vec<HandScorings>)> = Vec::from([
             (
                 "T-4-A Fifteen",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("As"),
                     Card::from("4h"),
                     Card::from("9h"),
@@ -381,7 +380,7 @@ mod hand_scoring {
             ),
             (
                 "Multiple three card Fifteens",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("As"),
                     Card::from("4h"),
                     Card::from("9h"),
@@ -409,10 +408,10 @@ mod hand_scoring {
 
     #[test]
     fn four_card_fifteens() {
-        let tests: Vec<(&str, Vec<Card>, Card, Vec<HandScorings>)> = Vec::from([
+        let tests: Vec<(&str, HashSet<Card>, Card, Vec<HandScorings>)> = Vec::from([
             (
                 "T-3-A-A Fifteen",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("As"),
                     Card::from("Ah"),
                     Card::from("3h"),
@@ -432,7 +431,7 @@ mod hand_scoring {
             ),
             (
                 "Multiple four card Fifteens",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("As"),
                     Card::from("Ah"),
                     Card::from("3h"),
@@ -471,10 +470,10 @@ mod hand_scoring {
 
     #[test]
     fn five_card_fifteens() {
-        let tests: Vec<(&str, Vec<Card>, Card, Vec<HandScorings>)> = Vec::from([
+        let tests: Vec<(&str, HashSet<Card>, Card, Vec<HandScorings>)> = Vec::from([
             (
                 "5-4-2-2-2 Fifteen",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("5s"),
                     Card::from("4h"),
                     Card::from("2h"),
@@ -495,7 +494,7 @@ mod hand_scoring {
             ),
             (
                 "6-5-2-A-A Fifteen",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("6s"),
                     Card::from("5h"),
                     Card::from("2h"),
@@ -522,10 +521,10 @@ mod hand_scoring {
 
     #[test]
     fn test_pairs() {
-        let tests: Vec<(&str, Vec<Card>, Card, Vec<HandScorings>)> = Vec::from([
+        let tests: Vec<(&str, HashSet<Card>, Card, Vec<HandScorings>)> = Vec::from([
             (
                 "Single pair",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("2s"),
                     Card::from("2c"),
                     Card::from("Ah"),
@@ -539,7 +538,7 @@ mod hand_scoring {
             ),
             (
                 "Two distinct pairs",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("2s"),
                     Card::from("2c"),
                     Card::from("Ah"),
@@ -553,7 +552,7 @@ mod hand_scoring {
             ),
             (
                 "Pair royale",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("2s"),
                     Card::from("2c"),
                     Card::from("2h"),
@@ -568,7 +567,7 @@ mod hand_scoring {
             ),
             (
                 "Double pair royale",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("2s"),
                     Card::from("2c"),
                     Card::from("2h"),
@@ -593,10 +592,10 @@ mod hand_scoring {
 
     #[test]
     fn runs_of_three() {
-        let tests: Vec<(&str, Vec<Card>, Card, Vec<HandScorings>)> = Vec::from([
+        let tests: Vec<(&str, HashSet<Card>, Card, Vec<HandScorings>)> = Vec::from([
             (
                 "Single run of three",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("As"),
                     Card::from("2s"),
                     Card::from("3d"),
@@ -611,7 +610,7 @@ mod hand_scoring {
             ),
             (
                 "Double run of three",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("As"),
                     Card::from("2s"),
                     Card::from("3d"),
@@ -633,7 +632,7 @@ mod hand_scoring {
             ),
             (
                 "Triple run of three",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("As"),
                     Card::from("2s"),
                     Card::from("3d"),
@@ -666,11 +665,11 @@ mod hand_scoring {
 
     #[test]
     fn runs_of_four() {
-        let tests: Vec<(&str, Vec<Card>, Card, Vec<HandScorings>, Vec<HandScorings>)> =
+        let tests: Vec<(&str, HashSet<Card>, Card, Vec<HandScorings>, Vec<HandScorings>)> =
             Vec::from([
                 (
                     "Single run of four",
-                    Vec::from([
+                    HashSet::from_iter(vec![
                         Card::from("As"),
                         Card::from("2s"),
                         Card::from("3d"),
@@ -698,7 +697,7 @@ mod hand_scoring {
                 ),
                 (
                     "Double run of four",
-                    Vec::from([
+                    HashSet::from_iter(vec![
                         Card::from("As"),
                         Card::from("2s"),
                         Card::from("3d"),
@@ -753,10 +752,10 @@ mod hand_scoring {
 
     #[test]
     fn runs_of_five() {
-        let tests: Vec<(&str, Vec<Card>, Card, Vec<HandScorings>, Vec<HandScorings>)> =
+        let tests: Vec<(&str, HashSet<Card>, Card, Vec<HandScorings>, Vec<HandScorings>)> =
             Vec::from([(
                 "Run of five",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("As"),
                     Card::from("2s"),
                     Card::from("3d"),
@@ -815,9 +814,9 @@ mod hand_scoring {
 
     #[test]
     fn four_card_flush() {
-        let tests: Vec<(&str, Vec<Card>, Card, Vec<HandScorings>)> = Vec::from([(
+        let tests: Vec<(&str, HashSet<Card>, Card, Vec<HandScorings>)> = Vec::from([(
             "Four card flush",
-            Vec::from([
+            HashSet::from_iter(vec![
                 Card::from("As"),
                 Card::from("2s"),
                 Card::from("3s"),
@@ -838,10 +837,10 @@ mod hand_scoring {
 
     #[test]
     fn five_card_flush() {
-        let tests: Vec<(&str, Vec<Card>, Card, Vec<HandScorings>, Vec<HandScorings>)> =
+        let tests: Vec<(&str, HashSet<Card>, Card, Vec<HandScorings>, Vec<HandScorings>)> =
             Vec::from([(
                 "Five card flush",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("As"),
                     Card::from("2s"),
                     Card::from("3s"),
@@ -885,10 +884,10 @@ mod hand_scoring {
 
     #[test]
     fn nobs() {
-        let tests: Vec<(&str, Vec<Card>, Card, Vec<HandScorings>)> = Vec::from([
+        let tests: Vec<(&str, HashSet<Card>, Card, Vec<HandScorings>)> = Vec::from([
             (
                 "Nobs spades",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("Js"),
                     Card::from("2c"),
                     Card::from("3h"),
@@ -899,7 +898,7 @@ mod hand_scoring {
             ),
             (
                 "Nobs hearts",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("Jh"),
                     Card::from("2c"),
                     Card::from("3s"),
@@ -910,7 +909,7 @@ mod hand_scoring {
             ),
             (
                 "Nobs clubs",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("Jc"),
                     Card::from("2s"),
                     Card::from("3h"),
@@ -921,7 +920,7 @@ mod hand_scoring {
             ),
             (
                 "Nobs diamonds",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("Jd"),
                     Card::from("2c"),
                     Card::from("3h"),
@@ -942,13 +941,11 @@ mod crib_scoring {
     use super::*;
     use crate::simulation::deck::Card;
 
-    fn contains(hand: &Vec<Card>, up_card: &Card, expected: &Vec<HandScorings>) -> bool {
-        for shuffled in combinations(hand.iter(), hand.len()) {
-            let scorings = score_crib(Vec::from_iter(shuffled.iter().cloned()), *up_card);
-            for scoring in expected.iter().cloned() {
-                if !scorings.contains(&scoring) {
-                    return false;
-                }
+    fn contains(hand: &HashSet<Card>, up_card: &Card, expected: &Vec<HandScorings>) -> bool {
+        let scorings = score_crib(hand, *up_card);
+        for scoring in expected.iter().cloned() {
+            if !scorings.contains(&scoring) {
+                return false;
             }
         }
         true
@@ -956,9 +953,9 @@ mod crib_scoring {
 
     #[test]
     fn four_card_flush_not_allowed() {
-        let tests: Vec<(&str, Vec<Card>, Card, Vec<HandScorings>)> = Vec::from([(
+        let tests: Vec<(&str, HashSet<Card>, Card, Vec<HandScorings>)> = Vec::from([(
             "Four card flush",
-            Vec::from([
+            HashSet::from_iter(vec![
                 Card::from("As"),
                 Card::from("2s"),
                 Card::from("3s"),
@@ -979,10 +976,10 @@ mod crib_scoring {
 
     #[test]
     fn five_card_flush() {
-        let tests: Vec<(&str, Vec<Card>, Card, Vec<HandScorings>, Vec<HandScorings>)> =
+        let tests: Vec<(&str, HashSet<Card>, Card, Vec<HandScorings>, Vec<HandScorings>)> =
             Vec::from([(
                 "Five card flush",
-                Vec::from([
+                HashSet::from_iter(vec![
                     Card::from("As"),
                     Card::from("2s"),
                     Card::from("3s"),
