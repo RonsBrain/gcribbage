@@ -1,4 +1,4 @@
-use crate::simulation::deck::Card;
+use crate::deck::Card;
 use std::collections::HashSet;
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]

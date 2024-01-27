@@ -1,6 +1,6 @@
-use crate::simulation::deck::{Card, Deck, Rank};
-use crate::simulation::player::{KnowsCribbage, PlayerPosition};
-use crate::simulation::scoring::{score_hand, score_pegging, HandScorings, PeggingScorings};
+use crate::deck::{Card, Deck, Rank};
+use crate::player::{KnowsCribbage, PlayerPosition};
+use crate::scoring::{score_hand, score_pegging, HandScorings, PeggingScorings};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, PartialEq)]
@@ -575,7 +575,7 @@ impl<'a> GameRunner<'a> {
 #[cfg(test)]
 mod test_rules {
     use super::*;
-    use crate::simulation::player::SimplePlayer;
+    use crate::player::SimplePlayer;
 
     #[test]
     fn chooses_dealer() {

@@ -1,6 +1,6 @@
-use crate::simulation::deck::{Card, Deck, Rank};
-use crate::simulation::player::{KnowsCribbage, PlayerPosition};
-use crate::simulation::scoring::{
+use crate::deck::{Card, Deck, Rank};
+use crate::player::{KnowsCribbage, PlayerPosition};
+use crate::scoring::{
     score_crib, score_hand, score_pegging, HandScorings, PeggingScorings,
 };
 use std::collections::{HashMap, HashSet};
@@ -37,7 +37,7 @@ pub struct GameRunner<'a, P: KnowsCribbage> {
     scores: HashMap<PlayerPosition, u8>,
     players: HashMap<PlayerPosition, &'a mut P>,
     up_card: Option<Card>,
-    crib: Vec<Card>,
+    crib: HashSet<Card>,
     current_player: PlayerPosition,
     played_cards: Vec<Card>,
     last_card_player: Option<PlayerPosition>,
@@ -157,7 +157,7 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
             current_player: PlayerPosition::Second,
             played_cards: Vec::new(),
             last_card_player: None,
-            crib: Vec::new(),
+            crib: HashSet::new(),
         }
     }
 
@@ -272,7 +272,7 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
                     let hand = self.hands.get_mut(&position).unwrap();
                     for card in choice {
                         hand.remove(&card);
-                        self.crib.push(card);
+                        self.crib.insert(card);
                     }
                 }
                 let up_card = self.deck.deal(1);
@@ -389,8 +389,8 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
                                 .unwrap()
                                 .iter()
                                 .copied()
-                                .collect::<Vec<Card>>();
-                            let scorings = score_hand(hand, self.up_card.unwrap());
+                                .collect::<HashSet<Card>>();
+                            let scorings = score_hand(&hand, self.up_card.unwrap());
                             let player_score = self.scores.get_mut(&self.current_player).unwrap();
                             for scoring in scorings.iter() {
                                 *player_score += scoring.value();
@@ -449,8 +449,8 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
                     .unwrap()
                     .iter()
                     .copied()
-                    .collect::<Vec<Card>>();
-                let scorings = score_hand(hand, self.up_card.unwrap());
+                    .collect::<HashSet<Card>>();
+                let scorings = score_hand(&hand, self.up_card.unwrap());
                 let player_score = self.scores.get_mut(&self.dealer).unwrap();
                 for scoring in scorings.iter() {
                     *player_score += scoring.value();
@@ -466,8 +466,7 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
                 )
             }
             GameState::ScoreDealer => {
-                let crib = self.crib.to_vec();
-                let scorings = score_crib(crib, self.up_card.unwrap());
+                let scorings = score_crib(&self.crib, self.up_card.unwrap());
                 let player_score = self.scores.get_mut(&self.dealer).unwrap();
                 for scoring in scorings.iter() {
                     *player_score += scoring.value();
@@ -504,8 +503,8 @@ impl<'a, P: KnowsCribbage> GameRunner<'a, P> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::simulation::deck::{Card, Deck};
-    use crate::simulation::player::SimplePlayer;
+    use crate::deck::{Card, Deck};
+    use crate::player::SimplePlayer;
 
     struct TestFixture {
         hands: [HashSet<Card>; 2],

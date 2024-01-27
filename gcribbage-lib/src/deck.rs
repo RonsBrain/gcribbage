@@ -31,6 +31,44 @@ impl Rank {
         .copied()
     }
 
+    pub fn prev(&self) -> Rank {
+        use Rank::*;
+        match self {
+            Ace => King,
+            Two => Ace,
+            Three => Two,
+            Four => Three,
+            Five => Four,
+            Six => Five,
+            Seven => Six,
+            Eight => Seven,
+            Nine => Eight,
+            Ten => Nine,
+            Jack => Ten,
+            Queen => Jack,
+            King => Queen,
+        }
+    }
+
+    pub fn next(&self) -> Rank {
+        use Rank::*;
+        match self {
+            Ace => Two,
+            Two => Three,
+            Three => Four,
+            Four => Five,
+            Five => Six,
+            Six => Seven,
+            Seven => Eight,
+            Eight => Nine,
+            Nine => Ten,
+            Ten => Jack,
+            Jack => Queen,
+            Queen => King,
+            King => Ace,
+        }
+    }
+
     /// Makes a new rank from the given character, or panics if it doesn't
     /// know how to make this.
     pub fn from(origin: char) -> Rank {
@@ -50,6 +88,25 @@ impl Rank {
             'q' | 'Q' => Queen,
             'k' | 'K' => King,
             _ => panic!("Can't convert {:?} to a rank", origin),
+        }
+    }
+
+    pub fn to_char(&self) -> char {
+        use Rank::*;
+        match self {
+            Ace => 'A',
+            Two => '2',
+            Three => '3',
+            Four => '4',
+            Five => '5',
+            Six => '6',
+            Seven => '7',
+            Eight => '8',
+            Nine => '9',
+            Ten => 'T',
+            Jack => 'J',
+            Queen => 'Q',
+            King => 'K',
         }
     }
 
@@ -131,6 +188,16 @@ impl Suit {
         }
     }
 
+    pub fn to_symbol(&self) -> char {
+        use Suit::*;
+        match self {
+            Spades => '\u{2660}',
+            Hearts => '\u{2665}',
+            Clubs => '\u{2663}',
+            Diamonds => '\u{2666}',
+        }
+    }
+
     pub fn ordinal(&self) -> usize {
         use Suit::*;
         match self {
@@ -138,6 +205,26 @@ impl Suit {
             Hearts => 2,
             Clubs => 3,
             Diamonds => 4,
+        }
+    }
+
+    pub fn next(&self) -> Self {
+        use Suit::*;
+        match self {
+            Spades => Hearts,
+            Hearts => Clubs,
+            Clubs => Diamonds,
+            Diamonds => Spades,
+        }
+    }
+
+    pub fn prev(&self) -> Self {
+        use Suit::*;
+        match self {
+            Spades => Diamonds,
+            Hearts => Spades,
+            Clubs => Hearts,
+            Diamonds => Clubs,
         }
     }
 }

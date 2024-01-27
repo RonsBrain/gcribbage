@@ -1,4 +1,4 @@
-use crate::simulation::deck::Card;
+use crate::deck::Card;
 use std::collections::HashSet;
 
 pub fn combinations<'a, I>(cards: I, r: usize) -> Vec<HashSet<Card>>
@@ -36,7 +36,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::simulation::deck::Card;
+    use crate::deck::Card;
 
     #[test]
     fn test_pairs() {

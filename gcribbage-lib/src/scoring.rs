@@ -1,5 +1,5 @@
-use crate::simulation::combinatorics::combinations;
-use crate::simulation::deck::{Card, Rank, Suit};
+use crate::combinatorics::combinations;
+use crate::deck::{Card, Rank, Suit};
 use std::collections::HashSet;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -223,7 +223,7 @@ pub fn score_crib(hand: &HashSet<Card>, up_card: Card) -> Vec<HandScorings> {
 #[cfg(test)]
 mod hand_scoring {
     use super::*;
-    use crate::simulation::deck::Card;
+    use crate::deck::Card;
 
     fn contains(hand: &HashSet<Card>, up_card: &Card, expected: &Vec<HandScorings>) -> bool {
         let scorings = score_hand(hand, *up_card);
@@ -939,7 +939,7 @@ mod hand_scoring {
 #[cfg(test)]
 mod crib_scoring {
     use super::*;
-    use crate::simulation::deck::Card;
+    use crate::deck::Card;
 
     fn contains(hand: &HashSet<Card>, up_card: &Card, expected: &Vec<HandScorings>) -> bool {
         let scorings = score_crib(hand, *up_card);
@@ -1025,7 +1025,7 @@ mod crib_scoring {
 #[cfg(test)]
 mod pegging_scoring {
     use super::*;
-    use crate::simulation::deck::Card;
+    use crate::deck::Card;
 
     #[test]
     fn test_score_pegging() {
