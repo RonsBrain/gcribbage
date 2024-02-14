@@ -1,9 +1,15 @@
+use gcribbage_lib::deck::{Card, Rank, Suit};
+use relm4::gtk::{
+    self,
+    cairo::Context,
+    gdk::prelude::GdkCairoContextExt,
+    gdk_pixbuf::Pixbuf,
+    glib::{self, clone},
+    prelude::*,
+    subclass::prelude::*,
+};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use relm4::gtk::{
-    self, prelude::*, subclass::prelude::*, glib::{self, clone}, cairo::Context, gdk_pixbuf::Pixbuf, gdk::prelude::GdkCairoContextExt
-};
-use gcribbage_lib::deck::{Card, Rank, Suit};
 
 /// A structure for holding a Pixbuf that represents a deck of cards.
 struct CardBuffer {
@@ -24,12 +30,15 @@ impl CardBuffer {
         // We're going to rebuild the card images, so clear
         // what we already have.
         self.sub_pixbufs.clear();
-        self.buffer = Some(Pixbuf::from_resource_at_scale (
-            "/com/ronsbrain/gcribbage_gtk/anglo.svg",
-            -1, // Make the width match the origin aspect ratio wrt the height
-            height * 5,
-            true,
-        ).expect("Could not create card buffer"));
+        self.buffer = Some(
+            Pixbuf::from_resource_at_scale(
+                "/com/ronsbrain/gcribbage_gtk/anglo.svg",
+                -1, // Make the width match the origin aspect ratio wrt the height
+                height * 5,
+                true,
+            )
+            .expect("Could not create card buffer"),
+        );
 
         // Build out the HashMap of Card to sub pixbufs
         // that represent the card images.
@@ -53,25 +62,26 @@ impl CardBuffer {
             };
             for rank in Rank::iter() {
                 let col = rank.ordinal() - 1;
-                let sub_pixbuf = buffer.new_subpixbuf(
-                    width * col as i32,
-                    height * row,
-                    width,
-                    height,
-                );
+                let sub_pixbuf =
+                    buffer.new_subpixbuf(width * col as i32, height * row, width, height);
                 self.sub_pixbufs.insert(Card::new(suit, rank), sub_pixbuf);
             }
         }
     }
 
     pub fn get_pixbuf_for(&self, card: Card) -> &Pixbuf {
-        self.sub_pixbufs.get(&card).expect("Requested pixbuf for imaginary card")
+        self.sub_pixbufs
+            .get(&card)
+            .expect("Requested pixbuf for imaginary card")
     }
 }
 
 impl Default for CardBuffer {
     fn default() -> Self {
-        Self { buffer: None, sub_pixbufs: HashMap::new() }
+        Self {
+            buffer: None,
+            sub_pixbufs: HashMap::new(),
+        }
     }
 }
 
@@ -111,7 +121,10 @@ impl ObjectImpl for CardBox {
         self.parent_constructed();
         // We need to set up the draw function here. We're going to defer
         // to the widget's draw function.
-        DrawingAreaExtManual::set_draw_func(self.obj().as_ref(), clone!(@weak self as widget => move |_, cr, w, h| widget.draw(cr, w, h)));
+        DrawingAreaExtManual::set_draw_func(
+            self.obj().as_ref(),
+            clone!(@weak self as widget => move |_, cr, w, h| widget.draw(cr, w, h)),
+        );
     }
 }
 impl WidgetImpl for CardBox {}

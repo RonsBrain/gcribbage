@@ -1,18 +1,18 @@
-use gtk::prelude::*;
 use gtk::gio;
-use relm4::prelude::*;
+use gtk::prelude::*;
 use relm4::gtk::subclass::drawing_area::DrawingAreaImpl;
+use relm4::prelude::*;
 mod widgets;
-use widgets::CardBox;
 use gcribbage_lib::deck::Card;
+use widgets::CardBox;
 
 struct App {
-    hand: Vec<Card>
+    hand: Vec<Card>,
 }
 
 #[relm4::component]
 impl SimpleComponent for App {
-    type Init = Vec<Card>; 
+    type Init = Vec<Card>;
     type Input = ();
     type Output = ();
 
@@ -25,22 +25,25 @@ impl SimpleComponent for App {
                 set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 5,
                 set_margin_all: 5,
+                set_homogeneous: true,
 
-                CardBox {
-                    set_content_height: 100,
-                }
+                CardBox { },
+                CardBox { },
             }
         }
     }
 
-    fn init(hand: Self::Init, root: &Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init(
+        hand: Self::Init,
+        root: &Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
         let model = App { hand };
         let widgets = view_output!();
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
-    }
+    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {}
 }
 
 fn main() {
