@@ -248,11 +248,15 @@ pub struct Card {
 }
 
 impl Card {
+    pub fn new(suit: Suit, rank: Rank) -> Self {
+        Self { rank, suit }
+    }
+
     pub fn from(origin: &str) -> Self {
-        Card {
-            rank: Rank::from(origin.chars().next().unwrap()),
-            suit: Suit::from(origin.chars().nth(1).unwrap()),
-        }
+        Card::new(
+            Suit::from(origin.chars().nth(1).unwrap()),
+            Rank::from(origin.chars().next().unwrap()),
+        )
     }
 }
 

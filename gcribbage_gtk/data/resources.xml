@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/com/ronsbrain/gcribbage_gtk/">
+    <file compressed="true" preprocess="xml-stripblanks">anglo.svg</file>
+  </gresource>
+</gresources>
