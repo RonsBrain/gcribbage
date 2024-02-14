@@ -14,7 +14,7 @@ jobs:
 
     runs-on: ubuntu-latest
     strategy:
-        matrix: { dir: ['gcribbage-lib'] }
+        matrix: { dir: ['gcribbage_lib', 'gcribbage_gtk'] }
     steps:
     - uses: actions/checkout@v3
     - name: Build
