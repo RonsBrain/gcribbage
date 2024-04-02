@@ -1,7 +1,7 @@
-use gtk::gio;
-use gtk::prelude::*;
-use relm4::gtk::subclass::drawing_area::DrawingAreaImpl;
 use relm4::prelude::*;
+use relm4::gtk::prelude::*;
+use gtk::glib::BoxedAnyObject;
+use gtk::gio;
 mod widgets;
 use gcribbage_lib::deck::Card;
 use widgets::CardBox;
@@ -27,8 +27,13 @@ impl SimpleComponent for App {
                 set_margin_all: 5,
                 set_homogeneous: true,
 
-                CardBox { },
-                CardBox { },
+                CardBox {
+                    set_hand: BoxedAnyObject::new(vec![Card::from("as")]),
+                },
+                CardBox {
+                    set_hand: BoxedAnyObject::new(vec![Card::from("ah"), Card::from("2s"), Card::from("qd"), Card::from("9c")]),
+                    set_offset: 50.0,
+                },
             }
         }
     }

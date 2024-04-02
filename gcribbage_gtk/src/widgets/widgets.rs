@@ -4,9 +4,10 @@ use relm4::gtk::{
     cairo::Context,
     gdk::prelude::GdkCairoContextExt,
     gdk_pixbuf::Pixbuf,
-    glib::{self, clone},
+    glib::{self, clone, Properties},
     prelude::*,
     subclass::prelude::*,
+    glib::BoxedAnyObject,
 };
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -85,7 +86,8 @@ impl Default for CardBuffer {
     }
 }
 
-#[derive(Default)]
+#[derive(Properties)]
+#[properties(wrapper_type = super::CardBox)]
 pub struct CardBox {
     // Each CardBox will have its own CardBuffer. This can cause
     // some duplication but
@@ -93,6 +95,20 @@ pub struct CardBox {
     //  - It's possible that there are use cases that want to have
     //    differently sized cards
     card_buffer: RefCell<CardBuffer>,
+    #[property(get, set)]
+    hand: RefCell<BoxedAnyObject>,
+    #[property(get, set)]
+    offset: RefCell<f64>,
+}
+
+impl Default for CardBox {
+    fn default() -> Self {
+        Self {
+            card_buffer: RefCell::default(),
+            hand: RefCell::new(BoxedAnyObject::new::<Vec<Card>>(vec![])),
+            offset: RefCell::new(20.0), 
+        }
+    }
 }
 
 #[glib::object_subclass]
@@ -108,9 +124,11 @@ impl CardBox {
         if !buffer.has_buffer() {
             buffer.create_buffer(height);
         }
-        for (i, rank) in Rank::iter().enumerate() {
-            let pixbuf = buffer.get_pixbuf_for(Card::new(Suit::Spades, rank));
-            GdkCairoContextExt::set_source_pixbuf(cr, pixbuf, i as f64 * 20.0, 0.0);
+        let offset = *self.offset.borrow();
+        let cards = self.hand.borrow().borrow::<Vec<Card>>().clone();
+        for (i, card) in cards.iter().enumerate() {
+            let pixbuf = buffer.get_pixbuf_for(*card);
+            GdkCairoContextExt::set_source_pixbuf(cr, pixbuf, i as f64 * offset, 0.0);
             cr.paint().expect("Could not paint");
         }
     }
@@ -119,14 +137,28 @@ impl CardBox {
 impl ObjectImpl for CardBox {
     fn constructed(&self) {
         self.parent_constructed();
+        let obj = self.obj();
         // We need to set up the draw function here. We're going to defer
         // to the widget's draw function.
         DrawingAreaExtManual::set_draw_func(
-            self.obj().as_ref(),
+            obj.as_ref(),
             clone!(@weak self as widget => move |_, cr, w, h| widget.draw(cr, w, h)),
         );
     }
+
+    fn properties() -> &'static [glib::ParamSpec] {
+        Self::derived_properties()
+    }
+
+    fn set_property(&self, id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
+        self.derived_set_property(id, value, pspec);
+    }
+
+    fn property(&self, id: usize, pspec: &glib::ParamSpec) -> glib::Value {
+        self.derived_property(id, pspec)
+    }
 }
+
 impl WidgetImpl for CardBox {}
 impl DrawingAreaImpl for CardBox {
     fn resize(&self, _width: i32, height: i32) {
